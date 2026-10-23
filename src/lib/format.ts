@@ -1,12 +1,5 @@
 export const pad = (n: number) => String(n).padStart(2, '0')
 
-/** 83.4 → "1:23". Returns "--:--" for unknown durations. */
-export function formatDuration(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds < 0) return '--:--'
-  const s = Math.floor(seconds)
-  return `${Math.floor(s / 60)}:${pad(s % 60)}`
-}
-
 export function formatClock(d: Date, withSeconds = true) {
   const base = `${pad(d.getHours())}:${pad(d.getMinutes())}`
   return withSeconds ? `${base}:${pad(d.getSeconds())}` : base

@@ -2,11 +2,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowUpRight, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NAV, type SectionId } from '../data/nav'
-import { usePlayer } from '../hooks/useAudioPlayer'
 import { timeZoneLabel, useClock } from '../hooks/useClock'
 import { useDialog } from '../hooks/useDialog'
 import { formatClock } from '../lib/format'
-import { EqBars } from './EqBars'
 
 function useActiveSection() {
   const [active, setActive] = useState<SectionId | null>(null)
@@ -27,25 +25,6 @@ function useActiveSection() {
     }
   }, [])
   return active
-}
-
-function NowPlaying() {
-  const player = usePlayer()
-  const live = player.status !== 'idle' && player.status !== 'error'
-  if (!live) return null
-  const stateLabel = player.isPlaying ? 'Pause' : 'Play'
-  return (
-    <button
-      type="button"
-      onClick={player.toggle}
-      data-cursor={stateLabel}
-      aria-label={`${stateLabel} ${player.mood.title}`}
-      className="group hidden h-9 items-center gap-2.5 border border-line px-3 text-mute transition-colors hover:border-bone hover:text-bone sm:inline-flex"
-    >
-      <EqBars active={player.isPlaying} className={player.isPlaying ? 'text-acid' : ''} />
-      <span className="label max-w-[9rem] truncate">{player.mood.title}</span>
-    </button>
-  )
 }
 
 export function Header() {
@@ -95,7 +74,6 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-3 sm:gap-5">
-            <NowPlaying />
             <time className="label hidden tabular-nums text-mute sm:block" dateTime={now.toISOString()} aria-label="Your local time">
               {formatClock(now)}
             </time>
@@ -124,7 +102,6 @@ export function Header() {
 function Menu({ onClose, active }: { onClose: () => void; active: SectionId | null }) {
   const ref = useRef<HTMLDivElement>(null)
   const now = useClock()
-  const player = usePlayer()
   useDialog(ref, true, onClose)
 
   const go = (id: string) => {
@@ -200,13 +177,6 @@ function Menu({ onClose, active }: { onClose: () => void; active: SectionId | nu
         <div>
           <p className="label-sm text-dim">Time zone</p>
           <p className="label mt-1 truncate">{timeZoneLabel()}</p>
-        </div>
-        <div>
-          <p className="label-sm text-dim">Sound room</p>
-          <p className="label mt-1 flex items-center gap-2">
-            <EqBars active={player.isPlaying} className={player.isPlaying ? 'text-acid' : ''} />
-            {player.isPlaying ? player.mood.title : 'Silent'}
-          </p>
         </div>
         <div className="flex items-end md:justify-end">
           <a href="#top" onClick={(e) => (e.preventDefault(), go('top'))} className="label inline-flex items-center gap-1 text-bone hover:text-acid">
