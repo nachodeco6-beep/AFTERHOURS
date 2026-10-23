@@ -2,7 +2,7 @@
  * Publishes dist/ to the gh-pages branch, which GitHub Pages serves at
  * https://<user>.github.io/<repo>/.
  *
- *   npm run deploy      (builds with the /AFTERHOURS/ base path first)
+ *   npm run deploy      (builds with --base=/AFTERHOURS/ first)
  */
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
