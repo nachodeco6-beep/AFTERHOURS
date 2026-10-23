@@ -5,6 +5,8 @@ a sound room, a private journal and an archive of nocturnal work.
 
 Built with React, TypeScript, Vite, Tailwind CSS v4, Framer Motion and Lucide icons.
 
+**Live site:** https://nachodeco6-beep.github.io/AFTERHOURS/
+
 ## Run it locally
 
 ```bash
@@ -21,6 +23,7 @@ Other scripts:
 | `npm run typecheck` | TypeScript only                                                 |
 | `npm run lint`      | oxlint                                                          |
 | `npm run audio`     | Re-synthesises the Sound Room tracks (requires `ffmpeg` on PATH) |
+| `npm run deploy`    | Builds for GitHub Pages and publishes `dist/` to the `gh-pages` branch |
 
 ## What's inside
 
