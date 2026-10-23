@@ -5,7 +5,6 @@ import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { Intro } from './components/Intro'
-import { Journal } from './components/Journal'
 import { Marquee } from './components/Marquee'
 
 export default function App() {
@@ -25,7 +24,6 @@ export default function App() {
       <main id="main">
         <Hero ready={ready} />
         <Marquee words={['Night owls', 'Designers', 'Musicians', 'Insomniacs', 'Night shift', 'Dreamers']} />
-        <Journal />
         <Marquee words={['Archive', 'After dark', 'Long exposure', 'Empty towers', 'Black water']} duration={60} outline />
         <Archive />
       </main>
