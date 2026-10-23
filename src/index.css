@@ -94,9 +94,10 @@
   letter-spacing: -0.01em;
 }
 
-/* Outline display type used for hover-swaps */
+/* Outline display type. Only the fill is transparent: the stroke keeps
+   currentColor (making `color` transparent would erase the stroke too). */
 .outline-text {
-  color: transparent;
+  -webkit-text-fill-color: transparent;
   -webkit-text-stroke: 1px currentColor;
 }
 
