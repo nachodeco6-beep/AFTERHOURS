@@ -1,5 +1,11 @@
-export const NAV = [
-  { id: 'archive', no: '03', label: 'Night Archive', short: 'Archive', blurb: 'Twelve works made after dark' },
-] as const
+export interface NavItem {
+  id: string
+  no: string
+  label: string
+  blurb: string
+}
 
-export type SectionId = (typeof NAV)[number]['id']
+// Every section of the old site is gone; the router (next commit) brings the new views.
+export const NAV: NavItem[] = []
+
+export type SectionId = string

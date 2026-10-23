@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react'
-import { Archive } from './components/archive/Archive'
 import { Cursor } from './components/Cursor'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
@@ -25,7 +24,6 @@ export default function App() {
         <Hero ready={ready} />
         <Marquee words={['Night owls', 'Designers', 'Musicians', 'Insomniacs', 'Night shift', 'Dreamers']} />
         <Marquee words={['Archive', 'After dark', 'Long exposure', 'Empty towers', 'Black water']} duration={60} outline />
-        <Archive />
       </main>
       <Footer />
       <Cursor />
