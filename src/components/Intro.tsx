@@ -43,7 +43,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
           aria-hidden="true"
         >
           <div className="flex justify-between text-mute">
-            <span className="label">Loading the night</span>
+            <span className="label">Estudio creativo digital</span>
             <span className="label">N° 00</span>
           </div>
           <div className="overflow-hidden">
@@ -69,8 +69,8 @@ export function Intro({ onDone }: { onDone: () => void }) {
               transition={{ duration: 1.6, ease: [0.65, 0, 0.35, 1] }}
             />
             <div className="mt-3 flex justify-between text-mute">
-              <span className="label">Sound · Journal · Archive</span>
-              <span className="label">After midnight</span>
+              <span className="label">Idea · Etiquetas · Referencias</span>
+              <span className="label">From vision to visual</span>
             </div>
           </div>
         </motion.div>

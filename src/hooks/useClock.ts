@@ -22,6 +22,6 @@ export function timeZoneLabel() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ')
   } catch {
-    return 'Local time'
+    return 'Hora local'
   }
 }
