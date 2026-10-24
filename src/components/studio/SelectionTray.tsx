@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Sparkles, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronDown, Pencil, Sparkles, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useStudio } from '../../hooks/useStudio'
 import { COMPLETE_TARGET, MAX_SELECTION, MIN_SELECTION } from '../../lib/select'
 import { PhotoFrame } from './PhotoFrame'
@@ -12,7 +12,26 @@ interface TrayProps {
   onShowBoard: () => void
 }
 
-/** «Tu selección»: fixed at the bottom while there are picked photos. */
+/** True while the moodboard takes a good part of the screen. */
+function useBoardOnScreen(active: boolean) {
+  const [onScreen, setOnScreen] = useState(false)
+  useEffect(() => {
+    const el = active ? document.getElementById('moodboard') : null
+    if (!el) return
+    const io = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting && entry.intersectionRect.height >= window.innerHeight * 0.35), {
+      threshold: Array.from({ length: 21 }, (_, i) => i / 20),
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [active])
+  return active && onScreen
+}
+
+/**
+ * «Tu selección»: fixed at the bottom while there are picked photos. While the
+ * board is on screen it shrinks to a thin bar (counter + «Editar selección»),
+ * so it never covers the board.
+ */
 export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
   const { selection, removeSelected, complete, pool, board } = useStudio()
   const [notice, setNotice] = useState('')
@@ -21,11 +40,20 @@ export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
   const canComplete = count < COMPLETE_TARGET && pool.length > 0
   const ready = count >= MIN_SELECTION
 
+  const boardOnScreen = useBoardOnScreen(board !== null)
+  // «Editar selección» opens the full tray over the board until the board leaves the screen
+  const [opened, setOpened] = useState(false)
+  if (opened && !boardOnScreen) setOpened(false)
+  // and it never shrinks while the keyboard focus is inside it
+  const [focused, setFocused] = useState(false)
+  const mini = boardOnScreen && !opened && !focused
+  const editButton = useRef<HTMLButtonElement>(null)
+
   // leave room at the end of the page so the tray never covers content
   useEffect(() => {
-    document.documentElement.style.setProperty('--tray-space', visible ? '9.5rem' : '0px')
-    return () => document.documentElement.style.setProperty('--tray-space', '0px')
-  }, [visible])
+    document.documentElement.style.setProperty('--tray-space', visible ? (mini ? '3.5rem' : '9.5rem') : '0px')
+  }, [visible, mini])
+  useEffect(() => () => document.documentElement.style.setProperty('--tray-space', '0px'), [])
 
   const onComplete = () => {
     const added = complete()
@@ -47,59 +75,97 @@ export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
             exit={{ y: '100%' }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="mx-auto flex max-w-[1800px] flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:gap-6 md:px-10">
-              <div className="flex shrink-0 items-baseline justify-between gap-4 md:block">
-                <p className="label text-bone">Tu selección</p>
-                <p className="label mt-0.5 tabular-nums text-dim">
-                  <span className={ready ? 'text-acid' : 'text-bone'}>{count}</span> / {MAX_SELECTION}
-                  {!ready && <span className="ml-2 normal-case tracking-normal">· mínimo {MIN_SELECTION}</span>}
+            {mini ? (
+              <div className="mx-auto flex h-14 max-w-[1800px] items-center justify-between gap-4 px-4 sm:px-6 md:px-10">
+                <p className="label whitespace-nowrap text-bone">
+                  Tu selección{' '}
+                  <span className="ml-2 tabular-nums text-dim">
+                    <span className={ready ? 'text-acid' : 'text-bone'}>{count}</span> / {MAX_SELECTION}
+                  </span>
                 </p>
+                <button
+                  ref={editButton}
+                  type="button"
+                  onClick={() => setOpened(true)}
+                  className="label inline-flex h-10 shrink-0 items-center gap-2 border border-line px-3 whitespace-nowrap text-bone hover:border-bone max-sm:text-[0.625rem] max-sm:tracking-[0.08em]"
+                >
+                  <Pencil className="size-3.5" aria-hidden="true" /> Editar selección
+                </button>
               </div>
+            ) : (
+              <div
+                className="mx-auto flex max-w-[1800px] flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:gap-6 md:px-10"
+                onFocus={() => setFocused(true)}
+                onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(false)}
+              >
+                <div className="flex shrink-0 items-baseline justify-between gap-4 md:block">
+                  <p className="label text-bone">Tu selección</p>
+                  <p className="label mt-0.5 tabular-nums text-dim">
+                    <span className={ready ? 'text-acid' : 'text-bone'}>{count}</span> / {MAX_SELECTION}
+                    {!ready && <span className="ml-2 normal-case tracking-normal">· mínimo {MIN_SELECTION}</span>}
+                  </p>
+                </div>
 
-              <ul className="thin-scroll flex min-w-0 flex-1 gap-2 overflow-x-auto py-1" aria-label="Fotos elegidas">
-                {selection.map((s, i) => (
-                  <li key={s.photo.id} className="relative shrink-0">
-                    <div className="relative size-14 sm:size-16">
-                      <PhotoFrame photo={s.photo} size="thumb" eager className="absolute inset-0" />
-                      <span className="label-sm absolute bottom-0 left-0 bg-ink/80 px-1 text-bone">{String(i + 1).padStart(2, '0')}</span>
-                      {s.auto && (
-                        <span className="absolute top-0.5 left-0.5 size-2 bg-acid" title="Sumada por «Completar por mí»">
-                          <span className="sr-only">Sumada por «Completar por mí»</span>
-                        </span>
-                      )}
-                    </div>
+                <ul className="thin-scroll flex min-w-0 flex-1 gap-2 overflow-x-auto py-1" aria-label="Fotos elegidas">
+                  {selection.map((s, i) => (
+                    <li key={s.photo.id} className="relative shrink-0">
+                      <div className="relative size-14 sm:size-16">
+                        <PhotoFrame photo={s.photo} size="thumb" eager className="absolute inset-0" />
+                        <span className="label-sm absolute bottom-0 left-0 bg-ink/80 px-1 text-bone">{String(i + 1).padStart(2, '0')}</span>
+                        {s.auto && (
+                          <span className="absolute top-0.5 left-0.5 size-2 bg-acid" title="Sumada por «Completar por mí»">
+                            <span className="sr-only">Sumada por «Completar por mí»</span>
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSelected(s.photo.id)}
+                        aria-label={`Sacar de tu selección la foto ${i + 1}, de ${s.photo.author.name}`}
+                        className="absolute top-0 right-0 grid size-6 place-items-center bg-ink/85 text-bone hover:bg-alarm hover:text-ink"
+                      >
+                        <X className="size-3" strokeWidth={2} aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={onComplete}
+                    disabled={!canComplete}
+                    className="label inline-flex h-12 flex-1 items-center justify-center gap-2 border border-line px-3 whitespace-nowrap text-bone transition-colors hover:border-bone disabled:opacity-40 disabled:hover:border-line max-sm:text-[0.625rem] max-sm:tracking-[0.08em] md:flex-none md:px-4"
+                  >
+                    <Sparkles className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+                    Completar por mí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={board ? onShowBoard : onBuild}
+                    disabled={!ready}
+                    className="btn-fill inline-flex h-12 flex-1 items-center justify-center bg-acid px-5 text-ink [--fill-color:var(--color-bone)] disabled:bg-char-2 disabled:text-dim disabled:before:hidden md:flex-none"
+                  >
+                    <span className="display text-[1.25rem] leading-none tracking-[0.02em] whitespace-nowrap max-sm:text-[1.05rem]">{board ? 'Ver moodboard' : 'Armar moodboard'}</span>
+                  </button>
+                  {opened && (
                     <button
                       type="button"
-                      onClick={() => removeSelected(s.photo.id)}
-                      aria-label={`Sacar de tu selección la foto ${i + 1}, de ${s.photo.author.name}`}
-                      className="absolute top-0 right-0 grid size-6 place-items-center bg-ink/85 text-bone hover:bg-alarm hover:text-ink"
+                      onClick={() => {
+                        setOpened(false)
+                        setFocused(false)
+                        requestAnimationFrame(() => editButton.current?.focus())
+                      }}
+                      aria-label="Achicar la bandeja"
+                      title="Achicar la bandeja"
+                      className="grid size-12 shrink-0 place-items-center border border-line text-mute hover:border-bone hover:text-bone"
                     >
-                      <X className="size-3" strokeWidth={2} aria-hidden="true" />
+                      <ChevronDown className="size-4" aria-hidden="true" />
                     </button>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={onComplete}
-                  disabled={!canComplete}
-                  className="label inline-flex h-12 flex-1 items-center justify-center gap-2 border border-line px-3 whitespace-nowrap text-bone transition-colors hover:border-bone disabled:opacity-40 disabled:hover:border-line max-sm:text-[0.625rem] max-sm:tracking-[0.08em] md:flex-none md:px-4"
-                >
-                  <Sparkles className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-                  Completar por mí
-                </button>
-                <button
-                  type="button"
-                  onClick={board ? onShowBoard : onBuild}
-                  disabled={!ready}
-                  className="btn-fill inline-flex h-12 flex-1 items-center justify-center bg-acid px-5 text-ink [--fill-color:var(--color-bone)] disabled:bg-char-2 disabled:text-dim disabled:before:hidden md:flex-none"
-                >
-                  <span className="display text-[1.25rem] leading-none tracking-[0.02em] whitespace-nowrap max-sm:text-[1.05rem]">{board ? 'Ver moodboard' : 'Armar moodboard'}</span>
-                </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </motion.aside>
         )}
       </AnimatePresence>
