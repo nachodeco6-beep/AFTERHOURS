@@ -17,7 +17,9 @@ export interface Picked extends Entry {
   auto: boolean
 }
 
-export type Template = 'editorial' | 'collage' | 'grilla'
+import type { Template } from '../lib/compose'
+
+export type { Template }
 
 /** What the moodboard shows besides the photos. All off = «Solo imágenes». */
 export interface Include {
