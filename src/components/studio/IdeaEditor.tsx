@@ -1,14 +1,17 @@
+import { AnimatePresence } from 'framer-motion'
 import { Search } from 'lucide-react'
-import { useMemo, type KeyboardEvent } from 'react'
+import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useStudio } from '../../hooks/useStudio'
 import { joinTags, MAX_TAG_LENGTH, MAX_TAGS, parseTags } from '../../lib/tags'
+import { ConfirmDialog } from '../ConfirmDialog'
 import { TagChips } from './TagChips'
 
 const EXAMPLE = 'Marca de ropa urbana, surf, California 90s, analógico, flash directo, arena y negro'
 const MAX_IDEA = MAX_TAGS * MAX_TAG_LENGTH
 
 export function IdeaEditor({ demo }: { demo: boolean }) {
-  const { idea, setIdea, search, searching, requestsFor } = useStudio()
+  const { idea, setIdea, search, searching, requestsFor, board, dismantleBoard } = useStudio()
+  const [confirming, setConfirming] = useState(false)
   const parsed = useMemo(() => parseTags(idea), [idea])
   const tags = parsed.searchable
   const requests = requestsFor(tags)
@@ -17,7 +20,10 @@ export function IdeaEditor({ demo }: { demo: boolean }) {
   const extra = parsed.all.length - MAX_TAGS
 
   const run = () => {
-    if (canSearch) search(tags)
+    if (!canSearch) return
+    // a built board would be lost: ask first
+    if (board) setConfirming(true)
+    else search(tags)
   }
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -112,6 +118,24 @@ export function IdeaEditor({ demo }: { demo: boolean }) {
           <span className="display text-[1.4rem] leading-none tracking-[0.02em]">{searching ? 'Buscando…' : 'Buscar referencias'}</span>
         </button>
       </div>
+
+      <AnimatePresence>
+        {confirming && (
+          <ConfirmDialog
+            title="¿Buscar de nuevo?"
+            confirmLabel="Buscar igual"
+            onCancel={() => setConfirming(false)}
+            onConfirm={() => {
+              setConfirming(false)
+              dismantleBoard()
+              search(tags)
+            }}
+          >
+            Tenés un moodboard armado. Si buscás de nuevo, el tablero se desarma (título, plantilla y notas). Las fotos que
+            elegiste quedan en tu selección y podés volver a armarlo.
+          </ConfirmDialog>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

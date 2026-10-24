@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Reveal } from '../components/Reveal'
 import { SectionHeader } from '../components/SectionHeader'
 import { IncludeDialog } from '../components/moodboard/IncludeDialog'
+import { Moodboard } from '../components/moodboard/Moodboard'
 import { IdeaEditor } from '../components/studio/IdeaEditor'
 import { Results } from '../components/studio/Results'
 import { SelectionTray } from '../components/studio/SelectionTray'
@@ -49,9 +50,9 @@ export function StudioView() {
           <IdeaEditor demo={demo} />
         </Reveal>
 
-        {results ? (
-          <Results results={results} />
-        ) : (
+        {results && <Results results={results} />}
+        <Moodboard />
+        {!results && (
           <p className="mt-16 max-w-xl border-l border-line pl-4 text-sm leading-relaxed text-dim md:mt-20">
             {demo
               ? 'En modo demo no hay fotos para mostrar: acá van a aparecer las referencias cuando la búsqueda esté conectada.'

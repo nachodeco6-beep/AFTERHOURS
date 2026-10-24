@@ -72,7 +72,7 @@ export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
                       type="button"
                       onClick={() => removeSelected(s.photo.id)}
                       aria-label={`Sacar de tu selección la foto ${i + 1}, de ${s.photo.author.name}`}
-                      className="absolute -top-1 -right-1 grid size-6 place-items-center border border-line bg-ink text-mute hover:border-alarm hover:text-alarm"
+                      className="absolute top-0 right-0 grid size-6 place-items-center bg-ink/85 text-bone hover:bg-alarm hover:text-ink"
                     >
                       <X className="size-3" strokeWidth={2} aria-hidden="true" />
                     </button>
@@ -85,7 +85,7 @@ export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
                   type="button"
                   onClick={onComplete}
                   disabled={!canComplete}
-                  className="label inline-flex h-12 flex-1 items-center justify-center gap-2 border border-line px-4 text-bone transition-colors hover:border-bone disabled:opacity-40 disabled:hover:border-line md:flex-none"
+                  className="label inline-flex h-12 flex-1 items-center justify-center gap-2 border border-line px-3 whitespace-nowrap text-bone transition-colors hover:border-bone disabled:opacity-40 disabled:hover:border-line max-sm:text-[0.625rem] max-sm:tracking-[0.08em] md:flex-none md:px-4"
                 >
                   <Sparkles className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
                   Completar por mí
@@ -96,7 +96,7 @@ export function SelectionTray({ onBuild, onShowBoard }: TrayProps) {
                   disabled={!ready}
                   className="btn-fill inline-flex h-12 flex-1 items-center justify-center bg-acid px-5 text-ink [--fill-color:var(--color-bone)] disabled:bg-char-2 disabled:text-dim disabled:before:hidden md:flex-none"
                 >
-                  <span className="display text-[1.25rem] leading-none tracking-[0.02em]">{board ? 'Ver moodboard' : 'Armar moodboard'}</span>
+                  <span className="display text-[1.25rem] leading-none tracking-[0.02em] whitespace-nowrap max-sm:text-[1.05rem]">{board ? 'Ver moodboard' : 'Armar moodboard'}</span>
                 </button>
               </div>
             </div>

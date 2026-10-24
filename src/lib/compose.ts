@@ -194,11 +194,12 @@ const HARD_PENALTY = 25
 /** Fraction of the photo cut away when it fills a cell of the given ratio (object-fit: cover). */
 export const cropOf = (photoRatio: number, cellRatio: number) => 1 - Math.min(photoRatio, cellRatio) / Math.max(photoRatio, cellRatio)
 
-const BLOCK_FIT: Record<BlockKind, { ranges: [number, number][]; minArea: number }> = {
-  palette: { ranges: [[1.2, 4.5], [0.22, 0.6]], minArea: 6 },
-  type: { ranges: [[0.7, 1.9]], minArea: 12 },
-  keywords: { ranges: [[1, 5]], minArea: 6 },
-  notes: { ranges: [[0.6, 2.4]], minArea: 9 },
+/** Shapes each block reads well in, and how small / big its cell may get (blocks never upstage photos). */
+const BLOCK_FIT: Record<BlockKind, { ranges: [number, number][]; minArea: number; maxArea: number }> = {
+  palette: { ranges: [[1.2, 4.5], [0.22, 0.6]], minArea: 6, maxArea: 36 },
+  type: { ranges: [[0.7, 1.9]], minArea: 12, maxArea: 42 },
+  keywords: { ranges: [[1, 5]], minArea: 6, maxArea: 24 },
+  notes: { ranges: [[0.6, 2.4]], minArea: 9, maxArea: 32 },
 }
 
 function itemCost(item: Item, cell: BandCell, spec: TemplateSpec): number {
@@ -211,7 +212,20 @@ function itemCost(item: Item, cell: BandCell, spec: TemplateSpec): number {
   const fit = BLOCK_FIT[item.kind]
   const inside = fit.ranges.some(([lo, hi]) => ratio >= lo && ratio <= hi)
   const off = inside ? 0 : 6 + Math.min(...fit.ranges.map(([lo, hi]) => (ratio < lo ? lo / ratio : ratio / hi)))
-  return off + (area < fit.minArea ? 25 : 0)
+  return off + (area < fit.minArea ? 25 : 0) + (area > fit.maxArea ? 4 + (area - fit.maxArea) / 6 : 0)
+}
+
+/**
+ * What makes each template feel like itself, as a small cost per band:
+ * editorial likes few, large cells; collage likes many cells and mosaics;
+ * grilla likes equal widths.
+ */
+function bandTaste(band: Band, template: Template): number {
+  const k = band.cells.length
+  const widths = band.shape.split(':')[1].split('-').map(Number)
+  if (template === 'editorial') return k >= 4 ? 2.5 : k === 3 ? 0.6 : 0
+  if (template === 'collage') return k <= 2 ? 2 : k === 3 ? 0.8 : 0
+  return widths.every((w) => w === widths[0]) ? 0 : 1.2
 }
 
 // ─── Desktop layout ─────────────────────────────────────────────────────────
@@ -255,7 +269,7 @@ function layoutItems(items: Item[], template: Template): { cost: number; layout:
 
   for (const first of firstBands) {
     const heroArea = first.cells[0].w * first.cells[0].h
-    let firstCost = 0
+    let firstCost = bandTaste(first, template) + (template === 'editorial' ? -heroArea / 40 : 0) // editorial: a big lead
     first.cells.forEach((c, i) => (firstCost += itemCost(items[i], c, spec)))
     if (firstCost >= 60 || (best && firstCost >= best.cost)) continue
 
@@ -268,7 +282,7 @@ function layoutItems(items: Item[], template: Template): { cost: number; layout:
       for (const band of bands) {
         const k = band.cells.length
         if (pos + k > n) continue
-        let cost = band.shape === last.shape ? 2 : 0 // variety
+        let cost = (band.shape === last.shape ? 2 : 0) + bandTaste(band, template) // variety + template character
         if (k === 1 && band.cells[0].w === 12) cost += 3 // full-width rows only when they really fit
         for (let i = 0; i < k && cost < res.cost; i++) {
           const cell = band.cells[i]
