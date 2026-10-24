@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, ArrowUpRight, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Plus, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { Photo } from '../../../shared/types'
 import { useDialog } from '../../hooks/useDialog'
@@ -14,6 +14,9 @@ interface PhotoViewerProps {
   onNavigate: (index: number) => void
   /** The tag (search) a photo came from, shown in the details. */
   tagOf?: (photo: Photo) => string | undefined
+  /** When given, the viewer can add the photo to (or take it out of) the selection. */
+  isSelected?: (id: string) => boolean
+  onToggleSelect?: (photo: Photo) => void
 }
 
 function orientation(p: Photo) {
@@ -23,7 +26,7 @@ function orientation(p: Photo) {
   return 'Cuadrada'
 }
 
-export function PhotoViewer({ photos, index, onClose, onNavigate, tagOf }: PhotoViewerProps) {
+export function PhotoViewer({ photos, index, onClose, onNavigate, tagOf, isSelected, onToggleSelect }: PhotoViewerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const photo = photos[index]
   useDialog(ref, true, onClose)
@@ -40,6 +43,7 @@ export function PhotoViewer({ photos, index, onClose, onNavigate, tagOf }: Photo
 
   const tag = tagOf?.(photo)
   const many = photos.length > 1
+  const selected = isSelected?.(photo.id) ?? false
 
   return (
     <motion.div
@@ -114,11 +118,24 @@ export function PhotoViewer({ photos, index, onClose, onNavigate, tagOf }: Photo
                 </div>
               </dl>
 
+              {onToggleSelect && (
+                <button
+                  type="button"
+                  onClick={() => onToggleSelect(photo)}
+                  aria-pressed={selected}
+                  className={`label mt-8 inline-flex h-12 items-center justify-center gap-2 border px-5 transition-colors ${
+                    selected ? 'border-acid bg-acid text-ink' : 'border-bone text-bone hover:border-acid hover:text-acid'
+                  }`}
+                >
+                  {selected ? <Check className="size-4" strokeWidth={2.5} aria-hidden="true" /> : <Plus className="size-4" strokeWidth={2} aria-hidden="true" />}
+                  {selected ? 'En tu selección — sacar' : 'Sumar al moodboard'}
+                </button>
+              )}
               <a
                 href={photo.pageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-fill label mt-8 inline-flex h-12 items-center justify-center gap-2 bg-acid px-5 text-ink [--fill-color:var(--color-bone)]"
+                className={`btn-fill label inline-flex h-12 items-center justify-center gap-2 bg-acid px-5 text-ink [--fill-color:var(--color-bone)] ${onToggleSelect ? 'mt-2' : 'mt-8'}`}
               >
                 Ver en Unsplash <ArrowUpRight className="size-4" strokeWidth={1.75} aria-hidden="true" />
               </a>

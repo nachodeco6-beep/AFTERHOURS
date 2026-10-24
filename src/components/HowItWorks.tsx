@@ -15,20 +15,10 @@ const STEPS: Step[] = [
   {
     no: '01',
     title: 'Escribís la idea',
-    text: 'Una marca, una campaña, un clima. Escribila como te salga y separá cada concepto con una coma.',
-    sample: (
-      <p className="font-serif text-[1.35rem] leading-snug text-bone">
-        Marca de ropa urbana, surf, California 90s<span className="animate-pulse text-acid">|</span>
-      </p>
-    ),
-  },
-  {
-    no: '02',
-    title: 'La cortamos en etiquetas',
-    text: 'Cada parte se vuelve una etiqueta que podés editar, sacar o sumar a mano. Hasta seis por búsqueda.',
+    text: 'Una marca, una campaña, un clima, separado por comas. Cada parte es una etiqueta y cada etiqueta, una búsqueda de fotos reales en Unsplash.',
     sample: (
       <ul className="flex flex-wrap gap-2" aria-label="Ejemplo de etiquetas">
-        {['Marca de ropa urbana', 'Surf', 'California 90s'].map((t) => (
+        {['Ropa urbana', 'Surf', 'California 90s'].map((t) => (
           <li key={t} className="label border border-line px-2.5 py-1.5 text-bone">
             {t}
           </li>
@@ -37,12 +27,36 @@ const STEPS: Step[] = [
     ),
   },
   {
-    no: '03',
-    title: 'Buscamos fotos reales',
-    text: 'Cada etiqueta es una búsqueda en Unsplash. Ves las fotos agrupadas por etiqueta, con el crédito de cada fotógrafo.',
+    no: '02',
+    title: 'Elegís las fotos',
+    text: 'Sumás las que te gustan a tu selección, de 3 a 12. Si te faltan, «Completar por mí» suma fotos que acompañan tus colores y etiquetas.',
     sample: (
       <p className="label text-mute">
-        Foto: <span className="text-bone">nombre del autor</span> en <span className="text-bone">Unsplash</span>
+        Tu selección <span className="text-acid">6</span> / 12
+      </p>
+    ),
+  },
+  {
+    no: '03',
+    title: 'Armamos el moodboard',
+    text: 'Una composición editorial con tus fotos: la primera elegida va en el lugar principal y cada foto en un espacio a su medida. Editorial, collage o grilla.',
+    sample: (
+      <div aria-hidden="true" className="grid h-14 grid-cols-6 grid-rows-2 gap-1">
+        <span className="col-span-3 row-span-2 border border-line" />
+        <span className="col-span-2 border border-line" />
+        <span className="border border-line" />
+        <span className="border border-acid bg-acid/20" />
+        <span className="col-span-2 border border-line" />
+      </div>
+    ),
+  },
+  {
+    no: '04',
+    title: 'Elegís qué incluir',
+    text: 'Paleta sacada de las fotos, un par tipográfico según tu concepto, palabras clave y notas. O solo imágenes. Cada foto con su crédito.',
+    sample: (
+      <p className="label text-mute">
+        Paleta · Tipografías · Palabras clave · Notas
       </p>
     ),
   },
@@ -52,18 +66,18 @@ export function HowItWorks() {
   return (
     <section id="como-funciona" aria-labelledby="como-funciona-title" className="relative py-24 md:py-32">
       <div className="mx-auto max-w-[1800px] px-4 sm:px-6 md:px-10">
-        <SectionHeader id="como-funciona" no="00" label="Cómo funciona" meta="3 pasos" title="De la idea a la imagen">
-          Sin cuentas ni configuración: escribís, ajustás las etiquetas y mirás fotografías reales para empezar tu
-          dirección visual.
+        <SectionHeader id="como-funciona" no="00" label="Cómo funciona" meta="4 pasos" title="De la idea a la imagen">
+          Sin cuentas ni configuración: escribís, elegís fotografías reales y AFTERHOURS las compone en un tablero con
+          paleta y tipografías.
         </SectionHeader>
 
-        <ol className="grid border-t border-line md:grid-cols-3">
+        <ol className="grid border-t border-line md:grid-cols-2 xl:grid-cols-4">
           {STEPS.map((step, i) => (
             <Reveal
               as="li"
               key={step.no}
               delay={i * 90}
-              className="flex flex-col gap-6 border-b border-line py-8 md:border-b-0 md:py-10 md:pr-8 md:[&:not(:first-child)]:border-l md:[&:not(:first-child)]:pl-8"
+              className="flex flex-col gap-6 border-b border-line py-8 md:py-10 md:pr-8 md:even:border-l md:even:pl-8 xl:border-b-0 xl:[&:nth-child(3)]:border-l xl:[&:nth-child(3)]:pl-8"
             >
               <span aria-hidden="true" className="display outline-text text-[clamp(4rem,8vw,7rem)] text-bone">
                 {step.no}
