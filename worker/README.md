@@ -88,10 +88,12 @@ El secreto no se pierde.
 3. Si la web estaba corriendo con `npm run dev`, cerrala y volvé a abrirla.
 4. Entrá al Studio: ya no tiene que aparecer el aviso de «modo demo».
 
-`.env.local` no se sube a GitHub (está ignorado). La dirección del Worker no es secreta, pero la
-clave de Unsplash sí, y nunca va en ese archivo.
+`.env.local` no se sube a GitHub (está ignorado) y sirve para probar en tu compu.
 
-Para la versión publicada, `npm run deploy` lee el mismo `.env.local` al armar la web.
+Para la **versión publicada**, poné la misma línea en el archivo **`.env.production`** (también en la
+carpeta principal). Ese archivo sí se sube a GitHub, así `npm run deploy` funciona desde cualquier
+máquina. La dirección del Worker no es secreta, pero la clave de Unsplash sí, y **nunca** va en
+`.env.local` ni en `.env.production`.
 
 ---
 

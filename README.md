@@ -33,16 +33,22 @@ npm run dev        # http://localhost:5173
 Sin más configuración, el Studio arranca en **modo demo**. Para buscar fotos de verdad:
 
 1. Publicá el buscador (el Worker) siguiendo [`worker/README.md`](worker/README.md).
-2. Copiá `.env.example` como **`.env.local`** y completá la dirección del Worker:
+2. **Para desarrollo:** copiá `.env.example` como **`.env.local`** y completá la dirección del Worker:
 
    ```
    VITE_SEARCH_API_URL=https://afterhours-search.TU-USUARIO.workers.dev
    ```
 
-3. Volvé a correr `npm run dev`.
+   Después volvé a correr `npm run dev`. `.env.local` no se sube a GitHub.
+3. **Para la versión publicada:** poné la misma dirección en **`.env.production`**. Ese archivo sí
+   está versionado, para que `npm run deploy` funcione desde cualquier máquina (o desde Claude
+   Code). La dirección del Worker no es secreta.
 
-`.env.local` no se sube a GitHub. **La clave de Unsplash nunca va en este proyecto**: vive solo
-como secreto dentro del Worker.
+Al armar la versión publicada, `.env.production` tiene prioridad sobre `.env.local`. Si queda vacía,
+la web publicada sale en modo demo.
+
+**La clave de Unsplash nunca va en este proyecto**, ni en `.env.local` ni en `.env.production`:
+vive solo como secreto dentro del Worker.
 
 ## Cómo funciona la búsqueda
 
@@ -75,8 +81,8 @@ Todos los detalles, incluida la publicación paso a paso, están en [`worker/REA
 | `npm run lint` | Revisa el código con oxlint |
 | `npm run deploy` | Arma la web para GitHub Pages y la publica en la rama `gh-pages` (funciona en Windows, macOS y Linux) |
 
-Para publicar con la búsqueda conectada, `npm run deploy` usa la `VITE_SEARCH_API_URL` de tu
-`.env.local`.
+Para publicar con la búsqueda conectada, `npm run deploy` usa la `VITE_SEARCH_API_URL` de
+`.env.production` (versionado).
 
 En `worker/`: `npm test` (pruebas con Unsplash simulado), `npm run typecheck`, `npm run build`
 (regenera `worker.js`), `npm run dev` y `npm run deploy` (con wrangler).
