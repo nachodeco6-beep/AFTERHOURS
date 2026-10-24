@@ -32,6 +32,8 @@ export interface CanvasProps {
   onNotes: (notes: string) => void
   /** How much the canvas is scaled on screen: picks the right image size. */
   scale: number
+  /** Opens the Type Lab from the type block. */
+  onTypeLab?: () => void
 }
 
 function PhotoCell({ photo, number, width }: { photo: Photo; number: number; width: number }) {
@@ -51,7 +53,7 @@ function PhotoCell({ photo, number, width }: { photo: Photo; number: number; wid
  * The board itself: a canvas with the format's fixed size (see formats.ts),
  * the same on every screen. The parent scales it to fit.
  */
-export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes, scale }: CanvasProps) {
+export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes, scale, onTypeLab }: CanvasProps) {
   const { include, template, format } = board
   const bare = onlyImages(include)
   const blocks = useMemo<BlockKind[]>(
@@ -72,7 +74,10 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
   )
 
   // the pair's own weight overrides .display's 900, so 400-only fonts aren't faux-bolded
-  const titleStyle: CSSProperties = include.type ? { ...fontCss(pair.display), textTransform: 'none' } : {}
+  // plus the Type Lab's spacing and case
+  const titleStyle: CSSProperties = include.type
+    ? { ...fontCss(pair.display), textTransform: board.typeStyle.uppercase ? 'uppercase' : 'none', letterSpacing: `${board.typeStyle.tracking}em` }
+    : {}
 
   const render = (item: Item, w: number, h: number): ReactNode => {
     switch (item.kind) {
@@ -81,7 +86,7 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
       case 'palette':
         return <PaletteBlock palette={palette} loading={paletteLoading} vertical={w / h < 0.8} />
       case 'type':
-        return <TypeBlock pair={pair} fontsReady={fontsReady} />
+        return <TypeBlock pair={pair} fontsReady={fontsReady} style={board.typeStyle} onOpenLab={onTypeLab} />
       case 'keywords':
         return <KeywordsBlock tags={tags} />
       case 'notes':
