@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUp, ChevronDown, Pencil, Shuffle } from 'lucide-react'
+import { ArrowUp, Check, ChevronDown, Pencil, Save, Shuffle, Type } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardData } from '../../hooks/useBoardData'
-import { useStudio, type Format, type Template } from '../../hooks/useStudio'
+import { useStudio, type Format, type Template, type WriteResult } from '../../hooks/useStudio'
 import { FORMAT_ORDER, FORMATS } from '../../lib/formats'
 import { MIN_SELECTION } from '../../lib/select'
 import { BoardCanvas } from './BoardCanvas'
@@ -10,6 +10,7 @@ import { BoardStage } from './BoardStage'
 import { BoardViewer } from './BoardViewer'
 import { EditPhotosDialog } from './EditPhotosDialog'
 import { IncludeSwitches } from './IncludeSwitches'
+import { TypeLab } from './TypeLab'
 
 const TEMPLATES: { id: Template; label: string; hint: string }[] = [
   { id: 'editorial', label: 'Editorial', hint: 'Asimétrica, con jerarquía' },
@@ -24,10 +25,12 @@ const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: r
 /** The board section: toolbar + canvas. Shown once «Armar moodboard» was used. */
 export function Moodboard() {
   const studio = useStudio()
-  const { board, selection, updateBoard } = studio
+  const { board, selection, updateBoard, saveBoard, dirty, canSave } = studio
   const [editing, setEditing] = useState(false)
   const [showInclude, setShowInclude] = useState(false)
   const [viewing, setViewing] = useState(false)
+  const [typeLab, setTypeLab] = useState(false)
+  const [saveResult, setSaveResult] = useState<WriteResult | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const photos = useMemo(() => selection.map((s) => s.photo), [selection])
   const data = useBoardData(board, photos)
@@ -66,8 +69,14 @@ export function Moodboard() {
       onTitle={(title) => updateBoard({ title })}
       onNotes={(notes) => updateBoard({ notes })}
       scale={scale}
+      onTypeLab={() => {
+        setViewing(false)
+        setTypeLab(true)
+      }}
     />
   )
+
+  const save = () => setSaveResult(saveBoard())
 
   return (
     <section id="moodboard" aria-labelledby="moodboard-title" className="mt-20 scroll-mt-20 md:mt-28">
@@ -78,9 +87,42 @@ export function Moodboard() {
             Tu tablero
           </h2>
         </div>
-        <button type="button" onClick={backToPhotos} className="label inline-flex h-10 items-center gap-2 text-mute hover:text-bone">
-          <ArrowUp className="size-3.5" aria-hidden="true" /> Volver a elegir fotos
-        </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button type="button" onClick={backToPhotos} className="label inline-flex h-10 items-center gap-2 text-mute hover:text-bone">
+            <ArrowUp className="size-3.5" aria-hidden="true" /> Volver a elegir fotos
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!enough}
+            aria-describedby="save-status"
+            className={`label inline-flex h-10 items-center gap-2 border px-4 transition-colors disabled:opacity-40 ${dirty ? 'border-bone bg-bone text-ink hover:bg-transparent hover:text-bone' : 'border-line text-mute hover:border-bone hover:text-bone'}`}
+          >
+            {dirty ? <Save className="size-3.5" aria-hidden="true" /> : <Check className="size-3.5" aria-hidden="true" />}
+            {dirty ? 'Guardar' : 'Guardado'}
+          </button>
+        </div>
+      </div>
+      <div id="save-status" className="-mt-3 mb-4 min-h-5">
+        {saveResult === 'full' || saveResult === 'unavailable' ? (
+          <p role="alert" className="text-sm text-alarm">
+            {saveResult === 'full'
+              ? 'No se pudo guardar: el navegador se quedó sin espacio. Borrá algún tablero de «Mis tableros» y probá de nuevo.'
+              : 'No se pudo guardar: este navegador no deja guardar datos (puede ser una ventana privada). El tablero sigue acá mientras no cierres la pestaña.'}
+          </p>
+        ) : (
+          <p role="status" className="label-sm text-dim">
+            {!canSave
+              ? 'Este navegador no deja guardar (puede ser una ventana privada)'
+              : saveResult === 'ok' && !dirty
+                ? 'Guardado en este navegador'
+                : board.savedId
+                  ? dirty
+                    ? 'Hay cambios sin guardar'
+                    : ''
+                  : 'Se guarda en este navegador'}
+          </p>
+        )}
       </div>
 
       {/* toolbar: controls, not part of the board */}
@@ -140,11 +182,16 @@ export function Moodboard() {
             {board.include.type && (
               <button
                 type="button"
-                onClick={() => updateBoard({ pairOffset: board.pairOffset + 1 })}
+                onClick={() => updateBoard({ pairOffset: board.pairOffset + 1, fonts: null })}
                 className="label inline-flex h-10 items-center gap-2 border border-line px-3 text-bone hover:border-bone"
                 aria-describedby="pair-position"
               >
                 <Shuffle className="size-3.5" aria-hidden="true" /> Otra combinación
+              </button>
+            )}
+            {board.include.type && (
+              <button type="button" onClick={() => setTypeLab(true)} className="label inline-flex h-10 items-center gap-2 border border-line px-3 text-bone hover:border-bone">
+                <Type className="size-3.5" aria-hidden="true" /> Type Lab
               </button>
             )}
             <button type="button" onClick={() => setEditing(true)} className="label inline-flex h-10 items-center gap-2 border border-line px-3 text-bone hover:border-bone">
@@ -153,7 +200,7 @@ export function Moodboard() {
           </div>
           {board.include.type && (
             <p id="pair-position" className="label-sm text-dim" aria-live="polite">
-              Par {data.position + 1} de {data.ranked.length}: {data.pair.display.family} + {data.pair.text.family}
+              {board.fonts ? 'Elegido en el Type Lab' : `Par ${data.position + 1} de ${data.ranked.length}`}: {data.pair.display.family} + {data.pair.text.family}
             </p>
           )}
         </div>
@@ -189,6 +236,20 @@ export function Moodboard() {
       )}
 
       <AnimatePresence>{editing && <EditPhotosDialog onClose={() => setEditing(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {typeLab && board.include.type && (
+          <TypeLab
+            board={board}
+            auto={data.auto}
+            pair={data.pair}
+            fontsReady={data.fontsReady}
+            tags={data.tags}
+            notes={data.notes}
+            onChange={(patch) => updateBoard(patch)}
+            onClose={() => setTypeLab(false)}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {viewing && enough && (
           <BoardViewer format={board.format} onClose={() => setViewing(false)}>
