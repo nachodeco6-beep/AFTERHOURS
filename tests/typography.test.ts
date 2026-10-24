@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { TYPE_PAIRS } from '../src/data/typePairs.ts'
-import { fontCss, fontStack, googleFontsUrl, normalize, rankPairs, scorePair } from '../src/lib/typography.ts'
+import { DEFAULT_TYPE_STYLE, effectivePair, fontCss, fontStack, fontUrl, googleFontsUrl, legibilityNotes, normalize, pairKey, rankPairs, scorePair, weightsOf } from '../src/lib/typography.ts'
 
 const byId = (id: number) => TYPE_PAIRS.find((p) => p.id === id)!
 
@@ -60,4 +60,46 @@ test('display weights: Fraunces black with SOFT 100, Cinzel 600, the rest 400', 
   assert.equal(fontCss(byId(7).display).fontWeight, 600)
   const others = TYPE_PAIRS.filter((p) => p.id !== 6 && p.id !== 7)
   assert.ok(others.every((p) => fontCss(p.display).fontWeight === 400 && fontCss(p.text).fontWeight === 400))
+})
+
+test('Type Lab: weights come from what each font really has', () => {
+  assert.deepEqual(weightsOf(byId(1).display), [400, 500, 600, 700, 800, 900]) // Playfair Display
+  assert.deepEqual(weightsOf(byId(10).display), [400]) // Abril Fatface: one weight
+  assert.deepEqual(weightsOf(byId(6).display), [400, 500, 600, 700, 800, 900], 'Fraunces: only inside its loaded range')
+  assert.deepEqual(weightsOf(byId(23).display), [700, 900], 'Big Shoulders: what the site ships')
+  for (const p of TYPE_PAIRS) {
+    const ws = weightsOf(p.display)
+    assert.ok(ws.length > 0, `${p.display.family} has weights`)
+    if (p.display.weight) assert.ok(ws.includes(p.display.weight), `${p.display.family} ${p.display.weight}`)
+  }
+})
+
+test('Type Lab: fonts picked by hand mix two pairs; the weight goes on the headline', () => {
+  const auto = byId(1)
+  assert.equal(effectivePair(auto, null, DEFAULT_TYPE_STYLE), auto)
+  const mixed = effectivePair(auto, { display: 6, text: 9 }, DEFAULT_TYPE_STYLE)
+  assert.equal(mixed.display.family, 'Fraunces')
+  assert.equal(mixed.text.family, 'Montserrat')
+  assert.equal(mixed.category, 'Retro')
+  const heavy = effectivePair(auto, null, { ...DEFAULT_TYPE_STYLE, weight: 700 })
+  assert.equal(heavy.display.weight, 700)
+  assert.match(googleFontsUrl(heavy)!, /family=Playfair\+Display:wght@700/)
+  assert.equal(effectivePair(byId(10), null, { ...DEFAULT_TYPE_STYLE, weight: 700 }).display.weight, undefined, 'a weight the font lacks is ignored')
+  assert.notEqual(pairKey(heavy), pairKey(auto))
+  assert.equal(effectivePair(auto, { display: 999, text: 999 }, DEFAULT_TYPE_STYLE), auto, 'unknown ids fall back')
+})
+
+test('Type Lab: one font at a time, none for the fonts the site ships', () => {
+  assert.equal(fontUrl(byId(1).display), 'https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap')
+  assert.equal(fontUrl(byId(23).display), null)
+  assert.equal(fontUrl(byId(7).display), 'https://fonts.googleapis.com/css2?family=Cinzel:wght@600&display=swap')
+})
+
+test('Type Lab: legibility warnings', () => {
+  assert.deepEqual(legibilityNotes(byId(1), DEFAULT_TYPE_STYLE), [])
+  const script = byId(12) // Mrs Saint Delafield
+  assert.equal(legibilityNotes(script, { ...DEFAULT_TYPE_STYLE, uppercase: true }).length, 2)
+  assert.equal(legibilityNotes(byId(1), { ...DEFAULT_TYPE_STYLE, tracking: -0.04, leading: 1.15 }).length, 2)
+  assert.equal(legibilityNotes(byId(6), { ...DEFAULT_TYPE_STYLE, weight: 200 }).length, 1)
+  assert.ok(legibilityNotes(byId(21), DEFAULT_TYPE_STYLE).some((n) => /monoespaciada/.test(n)))
 })
