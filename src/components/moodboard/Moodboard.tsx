@@ -2,9 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowUp, ChevronDown, Pencil, Shuffle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardData } from '../../hooks/useBoardData'
-import { useStudio, type Template } from '../../hooks/useStudio'
+import { useStudio, type Format, type Template } from '../../hooks/useStudio'
+import { FORMAT_ORDER, FORMATS } from '../../lib/formats'
 import { MIN_SELECTION } from '../../lib/select'
 import { BoardCanvas } from './BoardCanvas'
+import { BoardStage } from './BoardStage'
+import { BoardViewer } from './BoardViewer'
 import { EditPhotosDialog } from './EditPhotosDialog'
 import { IncludeSwitches } from './IncludeSwitches'
 
@@ -14,6 +17,8 @@ const TEMPLATES: { id: Template; label: string; hint: string }[] = [
   { id: 'grilla', label: 'Grilla', hint: 'Ordenada, mucho aire' },
 ]
 
+const FORMAT_SHORT: Record<Format, string> = { horizontal: '16:9', vertical: '4:5', a4: 'A4' }
+
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** The board section: toolbar + canvas. Shown once «Armar moodboard» was used. */
@@ -22,6 +27,7 @@ export function Moodboard() {
   const { board, selection, updateBoard } = studio
   const [editing, setEditing] = useState(false)
   const [showInclude, setShowInclude] = useState(false)
+  const [viewing, setViewing] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const photos = useMemo(() => selection.map((s) => s.photo), [selection])
   const data = useBoardData(board, photos)
@@ -46,6 +52,23 @@ export function Moodboard() {
 
   const enough = selection.length >= MIN_SELECTION
 
+  // one canvas, shown either on the page (scaled to fit) or in the big viewer
+  const canvas = (scale: number) => (
+    <BoardCanvas
+      board={board}
+      photos={photos}
+      tags={data.tags}
+      palette={data.palette}
+      paletteLoading={data.paletteLoading}
+      pair={data.pair}
+      fontsReady={data.fontsReady}
+      notes={data.notes}
+      onTitle={(title) => updateBoard({ title })}
+      onNotes={(notes) => updateBoard({ notes })}
+      scale={scale}
+    />
+  )
+
   return (
     <section id="moodboard" aria-labelledby="moodboard-title" className="mt-20 scroll-mt-20 md:mt-28">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -63,6 +86,28 @@ export function Moodboard() {
       {/* toolbar: controls, not part of the board */}
       <div className="mb-8 border-y border-line py-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div role="radiogroup" aria-label="Formato" className="-mx-1 flex flex-wrap gap-1">
+            {FORMAT_ORDER.map((id) => {
+              const on = board.format === id
+              const f = FORMATS[id]
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  aria-label={`${f.label}: ${f.hint}`}
+                  title={`${f.label} · ${f.hint}`}
+                  onClick={() => updateBoard({ format: id })}
+                  className={`label relative inline-flex h-10 items-center px-3 tabular-nums transition-colors ${on ? 'text-ink' : 'text-mute hover:text-bone'}`}
+                >
+                  {on && <motion.span layoutId="format-pick" className="absolute inset-0 bg-bone" transition={{ type: 'spring', stiffness: 400, damping: 36 }} />}
+                  <span className="relative">{FORMAT_SHORT[id]}</span>
+                </button>
+              )
+            })}
+          </div>
+          <span aria-hidden="true" className="hidden h-6 w-px bg-line sm:block" />
           <div role="radiogroup" aria-label="Plantilla" className="-mx-1 flex flex-wrap gap-1">
             {TEMPLATES.map((t) => {
               const on = board.template === t.id
@@ -130,18 +175,9 @@ export function Moodboard() {
       </div>
 
       {enough ? (
-        <BoardCanvas
-          board={board}
-          photos={photos}
-          tags={data.tags}
-          palette={data.palette}
-          paletteLoading={data.paletteLoading}
-          pair={data.pair}
-          fontsReady={data.fontsReady}
-          notes={data.notes}
-          onTitle={(title) => updateBoard({ title })}
-          onNotes={(notes) => updateBoard({ notes })}
-        />
+        <BoardStage format={board.format} viewing={viewing} onView={() => setViewing(true)}>
+          {canvas}
+        </BoardStage>
       ) : (
         <div className="border border-line p-6 text-sm text-mute">
           El tablero necesita al menos {MIN_SELECTION} fotos.{' '}
@@ -153,6 +189,13 @@ export function Moodboard() {
       )}
 
       <AnimatePresence>{editing && <EditPhotosDialog onClose={() => setEditing(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {viewing && enough && (
+          <BoardViewer format={board.format} onClose={() => setViewing(false)}>
+            {canvas}
+          </BoardViewer>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

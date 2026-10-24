@@ -24,6 +24,7 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 - **Moodboard**: antes de armarlo elegís qué incluir (paleta, tipografías, palabras clave, notas o
   solo imágenes). Tres plantillas: Editorial, Collage y Grilla. Título editable, reordenar arrastrando
   o con «Antes/Después», sacar o reemplazar fotos, y créditos sobre cada foto y al pie del tablero.
+  Tres formatos de lámina: 16:9, 4:5 y A4.
 - **Paleta**: 5 colores leídos de los píxeles de las fotos; si no se pueden leer, se usan los colores
   que informa Unsplash (y se aclara). Clic o Enter copia el HEX.
 - **Tipografías**: 62 pares de Google Fonts (`src/data/typePairs.ts`); se elige el que mejor coincide
@@ -33,19 +34,27 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 
 ### Cómo se compone el tablero
 
-`src/lib/compose.ts` arma una grilla de 12 columnas con módulos cuadrados, apilando bandas
-horizontales. Cada plantilla tiene su repertorio de bandas (anchos de columna, alturas y cómo se parte
-cada columna). Una programación dinámica elige la secuencia de bandas que mejor calza con las fotos en
-el orden elegido:
+El tablero es una lámina de formato fijo, con medidas reales listas para exportar
+(`src/lib/formats.ts`): **Horizontal 16:9** (1920 × 1080, por defecto), **Vertical 4:5**
+(1080 × 1350) y **A4 vertical** (1240 × 1754, A4 a 150 ppp). El lienzo se maqueta a esa medida
+dividida por un factor fijo (para que el texto se lea en pantalla) y se escala para entrar entero en
+el ancho y el alto disponibles. «Ver en grande» lo abre a pantalla completa con zoom (botones, teclas
++ − 0, pellizco o ctrl + rueda).
 
-- cada foto va a una celda de proporción parecida (recorte máximo ~42%, sin deformar),
+`src/lib/compose.ts` reparte fotos y bloques dentro de ese marco con bandas horizontales que ocupan
+todo el ancho; cada banda tiene columnas de una celda o de varias apiladas, y su alto natural sale de
+las proporciones de lo que lleva. Una programación dinámica elige las bandas (o una columna alta para
+la foto protagonista con bandas al lado) cuyos altos suman exactamente el alto del marco:
+
+- las fotos no se deforman: lo que sobra lo absorben primero los bloques y después un recorte parejo
+  y acotado (máximo 45%, ~6% en promedio),
 - la primera foto elegida ocupa la celda más grande (en Grilla puede empatar),
 - los bloques de paleta, tipografía, palabras clave y notas ocupan celdas donde su contenido entra,
   integrados entre las fotos; si se apagan, las fotos ocupan su lugar,
-- cada banda llena el ancho completo, así que no quedan huecos.
+- todo llena el marco completo, así que no quedan huecos.
 
-En celular, Editorial pasa a una columna y Collage y Grilla a dos, con las horizontales a lo ancho y
-las verticales en pares de igual alto.
+Mientras el tablero está en pantalla, la bandeja «Tu selección» se achica a una barra mínima
+(contador + «Editar selección») para no taparlo.
 
 ## Correrlo en tu computadora
 

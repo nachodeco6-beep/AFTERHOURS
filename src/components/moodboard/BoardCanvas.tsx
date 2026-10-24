@@ -2,23 +2,24 @@ import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import type { Photo } from '../../../shared/types'
 import type { TypePair } from '../../data/typePairs'
 import { onlyImages, type Board } from '../../hooks/useStudio'
-import { useMediaQuery } from '../../hooks/useMediaQuery'
-import { compose, composeMobile, type BlockKind, type Item, type Template } from '../../lib/compose'
+import { compose, type BlockKind, type Item } from '../../lib/compose'
 import { pad } from '../../lib/format'
+import { canvasGeometry, FORMATS } from '../../lib/formats'
 import type { PaletteResult } from '../../lib/paletteImage'
 import { fontCss } from '../../lib/typography'
+import { UNSPLASH_URL } from '../../lib/unsplash'
 import { PhotoCredit } from '../studio/PhotoCredit'
 import { PhotoFrame } from '../studio/PhotoFrame'
 import { KeywordsBlock, NotesBlock, PaletteBlock, TypeBlock } from './Blocks'
 
-/** Gutter (px) and outer padding per template: the same grid, different air. */
-const AIR: Record<Template, { gap: number; mobileGap: number; frame: string }> = {
-  editorial: { gap: 20, mobileGap: 16, frame: 'p-5 sm:p-8 md:p-12' },
-  collage: { gap: 4, mobileGap: 4, frame: 'p-3 sm:p-4 md:p-5' },
-  grilla: { gap: 32, mobileGap: 14, frame: 'p-6 sm:p-10 md:p-16' },
-}
+const TEMPLATE_NAME = {
+  editorial: 'Editorial',
+  collage: 'Collage',
+  grilla: 'Grilla',
+} as const
+const FORMAT_SHORT = { horizontal: '16:9', vertical: '4:5', a4: 'A4' } as const
 
-interface CanvasProps {
+export interface CanvasProps {
   board: Board
   photos: Photo[]
   tags: string[]
@@ -29,14 +30,16 @@ interface CanvasProps {
   notes: string
   onTitle: (title: string) => void
   onNotes: (notes: string) => void
+  /** How much the canvas is scaled on screen: picks the right image size. */
+  scale: number
 }
 
-function PhotoCell({ photo, number, widthShare }: { photo: Photo; number: number; widthShare: number }) {
+function PhotoCell({ photo, number, width }: { photo: Photo; number: number; width: number }) {
   return (
     <figure className="group relative h-full w-full overflow-hidden bg-char">
-      <PhotoFrame photo={photo} className="absolute inset-0" sizes={`(min-width: 768px) ${Math.round(widthShare * 100)}vw, 100vw`} />
-      {/* discreet credit: on hover/focus on desktop, always on touch screens */}
-      <figcaption className="absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-ink/85 via-ink/40 to-transparent px-2.5 pt-6 pb-2 text-[0.6875rem] leading-tight text-bone/80 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+      <PhotoFrame photo={photo} className="absolute inset-0" sizes={`${Math.max(1, Math.ceil(width))}px`} />
+      {/* discreet credit on hover/focus; the footer always lists every credit */}
+      <figcaption className="absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-ink/85 via-ink/40 to-transparent px-2.5 pt-6 pb-2 text-[0.6875rem] leading-tight text-bone/80 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100 group-hover:opacity-100">
         <span className="label-sm text-acid">{pad(number)}</span>
         <PhotoCredit photo={photo} className="min-w-0 truncate" />
       </figcaption>
@@ -44,28 +47,39 @@ function PhotoCell({ photo, number, widthShare }: { photo: Photo; number: number
   )
 }
 
-export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes }: CanvasProps) {
-  const desktop = useMediaQuery('(min-width: 768px)')
-  const { include, template } = board
+/**
+ * The board itself: a canvas with the format's fixed size (see formats.ts),
+ * the same on every screen. The parent scales it to fit.
+ */
+export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes, scale }: CanvasProps) {
+  const { include, template, format } = board
   const bare = onlyImages(include)
   const blocks = useMemo<BlockKind[]>(
     () => [include.keywords && tags.length > 0 && 'keywords', include.palette && 'palette', include.type && 'type', include.notes && 'notes'].filter(Boolean) as BlockKind[],
     [include, tags.length],
   )
   const ratios = useMemo(() => photos.map((p) => p.width / p.height), [photos])
-  const layout = useMemo(() => (desktop ? compose(ratios, blocks, template) : null), [desktop, ratios, blocks, template])
-  const mobile = useMemo(() => (desktop ? null : composeMobile(ratios, blocks, template)), [desktop, ratios, blocks, template])
-  const air = AIR[template]
+  const geo = canvasGeometry(format, template, photos.length, bare)
+  const { width: gw, height: gh } = geo.grid
+  const layout = useMemo(
+    () =>
+      compose(ratios, blocks, template, {
+        width: gw,
+        height: gh,
+        gap: geo.gap,
+      }),
+    [ratios, blocks, template, gw, gh, geo.gap],
+  )
 
   // the pair's own weight overrides .display's 900, so 400-only fonts aren't faux-bolded
   const titleStyle: CSSProperties = include.type ? { ...fontCss(pair.display), textTransform: 'none' } : {}
 
-  const render = (item: Item, widthShare: number, vertical: boolean): ReactNode => {
+  const render = (item: Item, w: number, h: number): ReactNode => {
     switch (item.kind) {
       case 'photo':
-        return <PhotoCell photo={photos[item.index]} number={item.index + 1} widthShare={widthShare} />
+        return <PhotoCell photo={photos[item.index]} number={item.index + 1} width={w * scale} />
       case 'palette':
-        return <PaletteBlock palette={palette} loading={paletteLoading} vertical={vertical} />
+        return <PaletteBlock palette={palette} loading={paletteLoading} vertical={w / h < 0.8} />
       case 'type':
         return <TypeBlock pair={pair} fontsReady={fontsReady} />
       case 'keywords':
@@ -76,14 +90,22 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
   }
 
   const keyOf = (item: Item) => (item.kind === 'photo' ? photos[item.index].id : item.kind)
+  const inset = { left: geo.pad, right: geo.pad }
 
   return (
-    <article aria-label={`Moodboard: ${board.title}`} className={`border border-line bg-[#0c0c0b] ${air.frame}`}>
-      <header className={`flex flex-col gap-4 border-b border-line ${bare ? 'mb-5 pb-4' : 'mb-8 pb-6 md:mb-12 md:pb-8'}`}>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+    <article
+      aria-label={`Moodboard: ${board.title}`}
+      className="relative overflow-hidden bg-[#0c0c0b] text-bone"
+      style={{ width: geo.width, height: geo.height }}
+      data-format={format}
+      data-export-width={FORMATS[format].exportWidth}
+      data-export-height={FORMATS[format].exportHeight}
+    >
+      <header className="absolute flex flex-col border-b border-line" style={{ ...inset, top: geo.pad, height: geo.header }}>
+        <div className="flex h-4 items-baseline justify-between gap-6">
           <p className="label text-acid">Moodboard</p>
           <p className="label text-dim">
-            {photos.length} fotos · {template === 'editorial' ? 'Editorial' : template === 'collage' ? 'Collage' : 'Grilla'}
+            {photos.length} fotos · {TEMPLATE_NAME[template]} · {FORMAT_SHORT[format]}
           </p>
         </div>
         <label htmlFor="board-title" className="sr-only">
@@ -95,57 +117,54 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
           onChange={(e) => onTitle(e.target.value)}
           maxLength={80}
           spellCheck
-          className={`w-full min-w-0 bg-transparent text-bone outline-none placeholder:text-dim focus-visible:shadow-[inset_0_-2px_0_var(--color-acid)] ${
-            bare ? 'display text-[clamp(1.5rem,3vw,2.25rem)]' : 'display text-[clamp(2.75rem,8.5vw,8.5rem)] leading-[0.9]'
-          }`}
-          style={titleStyle}
+          className="display mt-2 w-full min-w-0 bg-transparent p-0 text-bone outline-none placeholder:text-dim focus-visible:shadow-[inset_0_-2px_0_var(--color-acid)]"
+          style={{
+            fontSize: geo.title,
+            height: Math.round(geo.title * 0.95),
+            lineHeight: 1,
+            ...titleStyle,
+          }}
           placeholder="Título"
         />
       </header>
 
-      {layout && (
-        <div style={{ containerType: 'inline-size' }}>
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
-              gridAutoRows: `calc((100cqi - ${11 * air.gap}px) / 12)`,
-              gap: air.gap,
-            }}
-          >
-            {layout.cells.map((c) => (
-              <div key={keyOf(c.item)} className="min-h-0 min-w-0" style={{ gridColumn: `${c.col} / span ${c.w}`, gridRow: `${c.row} / span ${c.h}` }}>
-                {render(c.item, c.w / 12, c.w / c.h < 0.8)}
-              </div>
-            ))}
+      <div className="absolute" style={{ left: geo.grid.x, top: geo.grid.y, width: gw, height: gh }}>
+        {layout.cells.map((c) => (
+          <div key={keyOf(c.item)} className="absolute" style={{ left: c.x, top: c.y, width: c.w, height: c.h }}>
+            {render(c.item, c.w, c.h)}
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {mobile && (
-        <div className={`grid ${mobile.columns === 2 ? 'grid-cols-2' : 'grid-cols-1'}`} style={{ gap: air.mobileGap }}>
-          {mobile.cells.map((c) => (
-            <div key={keyOf(c.item)} className={c.span === 2 && mobile.columns === 2 ? 'col-span-2' : ''} style={c.ratio ? { aspectRatio: c.ratio } : undefined}>
-              {render(c.item, c.span === 2 || mobile.columns === 1 ? 1 : 0.5, false)}
-            </div>
-          ))}
+      <footer className="absolute border-t border-line pt-2.5" style={{ ...inset, bottom: geo.pad, height: geo.footer }}>
+        <div className="flex h-[18px] items-baseline justify-between gap-4">
+          <p className="label-sm text-dim">
+            Créditos ·{' '}
+            <a href={UNSPLASH_URL} target="_blank" rel="noopener noreferrer" className="text-mute hover:text-acid">
+              Fotos de Unsplash
+            </a>
+          </p>
+          <p className="display text-base leading-none text-bone">Afterhours</p>
         </div>
-      )}
-
-      <footer className={`border-t border-line ${bare ? 'mt-5 pt-4' : 'mt-8 pt-6 md:mt-12'}`}>
-        <p className="label-sm text-dim">Créditos</p>
-        <ol className="mt-3 grid gap-x-6 gap-y-1.5 text-xs text-mute sm:grid-cols-2 lg:grid-cols-3">
+        <ol
+          className="grid gap-x-4"
+          style={{
+            gridTemplateColumns: `repeat(${geo.creditColumns}, minmax(0, 1fr))`,
+            gridAutoRows: 16,
+          }}
+        >
           {photos.map((p, i) => (
-            <li key={p.id} className="flex min-w-0 gap-2">
-              <span className="label-sm shrink-0 pt-px text-dim">{pad(i + 1)}</span>
-              <PhotoCredit photo={p} className="min-w-0" />
+            <li key={p.id} className="flex min-w-0 items-baseline gap-1.5 text-[11px] leading-4 text-mute">
+              <span className="label-sm shrink-0 text-dim">{pad(i + 1)}</span>
+              <span className="min-w-0 truncate">
+                Foto:{' '}
+                <a href={p.author.profileUrl} target="_blank" rel="noopener noreferrer" className="text-bone hover:text-acid hover:underline">
+                  {p.author.name}
+                </a>
+              </span>
             </li>
           ))}
         </ol>
-        <div className="mt-6 flex items-center justify-between gap-4">
-          <p className="display text-lg text-bone">Afterhours</p>
-          <p className="label-sm text-dim">Fotos de Unsplash</p>
-        </div>
       </footer>
     </article>
   )

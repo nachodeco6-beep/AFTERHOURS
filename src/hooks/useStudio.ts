@@ -18,8 +18,9 @@ export interface Picked extends Entry {
 }
 
 import type { Template } from '../lib/compose'
+import type { Format } from '../lib/formats'
 
-export type { Template }
+export type { Format, Template }
 
 /** What the moodboard shows besides the photos. All off = «Solo imágenes». */
 export interface Include {
@@ -40,6 +41,8 @@ export const onlyImages = (inc: Include) => !inc.palette && !inc.type && !inc.ke
 export interface Board {
   title: string
   template: Template
+  /** Fixed canvas size: 16:9, 4:5 or A4. */
+  format: Format
   include: Include
   /** Index into the ranked type pairs («Otra combinación»). */
   pairOffset: number
