@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cloudflare Worker: local secrets and wrangler state
+.dev.vars*
+.wrangler
+
+# Local env files (VITE_SEARCH_API_URL etc.)
+.env
+.env.*
+!.env.example

@@ -1,0 +1,13 @@
+name = "afterhours-search"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+
+# Orígenes que pueden usar el Worker, separados por comas (sin barra al final).
+[vars]
+ALLOWED_ORIGINS = "https://nachodeco6-beep.github.io,http://localhost:5173"
+
+# La clave de Unsplash NO va en este archivo. Cargala como secreto:
+#   npx wrangler secret put UNSPLASH_ACCESS_KEY
+# Para probar en tu compu con «npm run dev», ponela en worker/.dev.vars
+# (ese archivo está ignorado por git):
+#   UNSPLASH_ACCESS_KEY=tu_access_key

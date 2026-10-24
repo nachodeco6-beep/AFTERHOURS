@@ -1,0 +1,20 @@
+{
+  "name": "afterhours-search",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cloudflare Worker that searches Unsplash for AFTERHOURS without exposing the API key.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "esbuild src/index.ts --bundle --format=esm --target=es2022 --legal-comments=none --banner:js=\"// Archivo generado desde src/index.ts con «npm run build». No lo edites a mano: es la versión para pegar en el panel de Cloudflare.\" --outfile=worker.js",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/worker.test.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261023.1",
+    "esbuild": "^0.28.2",
+    "typescript": "~6.0.3",
+    "wrangler": "^4.152.0"
+  }
+}
