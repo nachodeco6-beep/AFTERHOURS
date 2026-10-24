@@ -31,7 +31,9 @@ y lleva unos 15 minutos.
 
 Las aplicaciones nuevas arrancan en **modo demo**, que permite **50 pedidos por hora**. Cada
 etiqueta que buscás en el Studio usa 1 pedido. Más adelante podés pedirle a Unsplash el
-modo «Production» (5.000 por hora) desde la página de tu aplicación.
+modo «Production» desde la página de tu aplicación: según la documentación oficial de Unsplash,
+permite **1.000 pedidos por hora**. Estos límites los fija Unsplash y pueden cambiar; revisá su
+documentación antes de contar con un número.
 
 ---
 
@@ -56,15 +58,21 @@ modo «Production» (5.000 por hora) desde la página de tu aplicación.
 
 ### Probar que funciona
 
-- Abrí la dirección del Worker en el navegador. Tenés que ver algo como
-  `{"service":"afterhours-search","ok":true,"keyConfigured":true,…}`.
-  Si dice `"keyConfigured":false`, falta el secreto del paso 6.
-- Agregale `/search?query=surf` al final. Tenés que ver un texto largo con `"photos"`.
+1. Abrí la dirección del Worker en el navegador, tal cual (sin nada al final). Tenés que ver algo
+   como `{"service":"afterhours-search","ok":true,"keyConfigured":true,…}`.
+   Si dice `"keyConfigured":false`, falta el secreto del paso 6.
+2. La búsqueda de verdad se prueba **desde el Studio**, después de conectar la web (Paso 3).
+
+Si abrís `/search` o `/download` directamente en una pestaña, vas a ver un error
+`origin_not_allowed`. Es a propósito: esas direcciones solo responden a la web de AFTERHOURS, para
+que nadie pueda gastar tus pedidos de Unsplash usando la dirección del Worker.
 
 ### ¿Desde qué páginas se puede usar?
 
-Por defecto, el Worker solo responde a la web publicada (`https://nachodeco6-beep.github.io`) y a la
-versión local (`http://localhost:5173`). Si alguna vez la web cambia de dirección, en
+Por defecto, `/search` y `/download` solo responden a la web publicada
+(`https://nachodeco6-beep.github.io`) y a la versión local (`http://localhost:5173`). Los pedidos que
+vienen de otra página, o que no dicen de qué página vienen (una pestaña, `curl`, un programa), reciben
+un error 403. La dirección `/` queda abierta para chequear que el Worker esté andando. Si alguna vez la web cambia de dirección, en
 **«Settings» → «Variables and Secrets»** agregá una variable de tipo **«Text»** llamada
 **`ALLOWED_ORIGINS`** con las direcciones separadas por comas, por ejemplo:
 `https://nachodeco6-beep.github.io,http://localhost:5173`.
@@ -126,7 +134,7 @@ Cuando algo falla, el Worker responde con un JSON como
 | `rate_limited` | Se gastaron los pedidos de la hora | Esperá hasta la hora siguiente. Incluye `rateLimitRemaining` |
 | `unsplash_error` | Unsplash respondió con un error | Probá en unos minutos. Incluye `upstreamStatus` |
 | `unsplash_unreachable` | No se pudo hablar con Unsplash | Probá en unos minutos |
-| `origin_not_allowed` | La página que pidió fotos no está autorizada | Revisá `ALLOWED_ORIGINS` |
+| `origin_not_allowed` | El pedido no vino de una página autorizada (o se abrió directo en una pestaña) | Probá desde el Studio; si la web cambió de dirección, revisá `ALLOWED_ORIGINS` |
 | `invalid_params` | La búsqueda vino mal armada (vacía, muy larga…) | — |
 
 ---
