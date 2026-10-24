@@ -6,6 +6,7 @@ import { SectionHeader } from '../components/SectionHeader'
 import { IncludeDialog } from '../components/moodboard/IncludeDialog'
 import { Moodboard } from '../components/moodboard/Moodboard'
 import { IdeaEditor } from '../components/studio/IdeaEditor'
+import { MyBoards } from '../components/studio/MyBoards'
 import { Results } from '../components/studio/Results'
 import { SelectionTray } from '../components/studio/SelectionTray'
 import { useStudio } from '../hooks/useStudio'
@@ -52,6 +53,7 @@ export function StudioView() {
 
         {results && <Results results={results} />}
         <Moodboard />
+        <MyBoards />
         {!results && (
           <p className="mt-16 max-w-xl border-l border-line pl-4 text-sm leading-relaxed text-dim md:mt-20">
             {demo
