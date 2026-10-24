@@ -1,7 +1,14 @@
-export const NAV = [
-  { id: 'sound-room', no: '01', label: 'Sound Room', short: 'Sound', blurb: 'Four moods for four kinds of night' },
-  { id: 'the-void', no: '02', label: 'The Void', short: 'Journal', blurb: 'A private page for what keeps you up' },
-  { id: 'archive', no: '03', label: 'Night Archive', short: 'Archive', blurb: 'Twelve works made after dark' },
-] as const
+import type { RouteId } from '../lib/router'
 
-export type SectionId = (typeof NAV)[number]['id']
+export interface NavItem {
+  route: RouteId
+  no: string
+  label: string
+  blurb: string
+}
+
+/** Only views that exist. Stage 3 adds «Archive». */
+export const NAV: NavItem[] = [
+  { route: 'home', no: '00', label: 'Inicio', blurb: 'From vision to visual' },
+  { route: 'studio', no: '01', label: 'Studio', blurb: 'Escribí una idea y buscá fotografías reales' },
+]

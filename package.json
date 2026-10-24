@@ -8,9 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "audio": "node scripts/generate-audio.mjs",
     "typecheck": "tsc -b",
-    "deploy": "BASE_PATH=/AFTERHOURS/ npm run build && node scripts/deploy-pages.mjs"
+    "deploy": "tsc -b && vite build --base=/AFTERHOURS/ && node scripts/deploy-pages.mjs"
   },
   "dependencies": {
     "@fontsource/big-shoulders-display": "^5.3.0",

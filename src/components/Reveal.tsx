@@ -1,6 +1,6 @@
-import { useEffect, useRef, type CSSProperties, type ElementType, type ReactNode } from 'react'
+import { useEffect, useRef, type CSSProperties, type ElementType, type HTMLAttributes, type ReactNode } from 'react'
 
-interface RevealProps {
+interface RevealProps extends Omit<HTMLAttributes<HTMLElement>, 'style'> {
   as?: ElementType
   delay?: number
   className?: string
@@ -8,7 +8,7 @@ interface RevealProps {
 }
 
 /** Fades and lifts its content in once it enters the viewport. */
-export function Reveal({ as: Tag = 'div', delay = 0, className, children }: RevealProps) {
+export function Reveal({ as: Tag = 'div', delay = 0, className, children, ...rest }: RevealProps) {
   const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function Reveal({ as: Tag = 'div', delay = 0, className, children }: Reve
   }, [])
 
   return (
-    <Tag ref={ref} data-reveal="" className={className} style={{ '--reveal-delay': `${delay}ms` } as CSSProperties}>
+    <Tag {...rest} ref={ref} data-reveal="" className={className} style={{ '--reveal-delay': `${delay}ms` } as CSSProperties}>
       {children}
     </Tag>
   )

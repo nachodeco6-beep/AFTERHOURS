@@ -1,81 +1,111 @@
-# AFTERHOURS
+# AFTERHOURS — From vision to visual
 
-An immersive digital experience for night owls, designers, musicians and creative minds:
-a sound room, a private journal and an archive of nocturnal work.
+AFTERHOURS es un generador de moodboards. Escribís una idea en español, la app la corta en
+etiquetas y busca **fotografías reales en Unsplash** para cada una, siempre con el crédito de su
+autor.
 
-Built with React, TypeScript, Vite, Tailwind CSS v4, Framer Motion and Lucide icons.
+Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 
-**Live site:** https://nachodeco6-beep.github.io/AFTERHOURS/
+> **Etapa 1 de 5.** Esta etapa tiene la portada, la navegación, el Studio y la búsqueda real de
+> fotos. La selección automática, las plantillas, la paleta, las tipografías, el guardado y la
+> exportación llegan en las próximas etapas.
 
-## Run it locally
+## Qué hay hoy
+
+- **Portada (`#/`)**: hero con paisaje animado, reloj local y el titular FROM / VISION / TO / VISUAL,
+  más una sección «Cómo funciona».
+- **Studio (`#/studio`)**: escribís la idea separando conceptos con comas. Cada parte se vuelve una
+  etiqueta (hasta 6) que podés editar, sacar o sumar a mano. «Buscar referencias» hace una búsqueda
+  en Unsplash por etiqueta y muestra las fotos agrupadas, sin repetidas, con filtros por etiqueta y
+  un visor con la foto grande, el crédito y el color dominante.
+- **Modo demo**: si la búsqueda no está conectada, el Studio lo avisa, el botón de buscar queda
+  deshabilitado y no se muestra ninguna foto.
+
+## Correrlo en tu computadora
+
+Necesitás [Node.js](https://nodejs.org) (versión LTS).
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
 ```
 
-Other scripts:
+Sin más configuración, el Studio arranca en **modo demo**. Para buscar fotos de verdad:
 
-| Script              | What it does                                                    |
-| ------------------- | --------------------------------------------------------------- |
-| `npm run build`     | Type-checks and builds to `dist/`                               |
-| `npm run preview`   | Serves the production build                                     |
-| `npm run typecheck` | TypeScript only                                                 |
-| `npm run lint`      | oxlint                                                          |
-| `npm run audio`     | Re-synthesises the Sound Room tracks (requires `ffmpeg` on PATH) |
-| `npm run deploy`    | Builds for GitHub Pages and publishes `dist/` to the `gh-pages` branch |
+1. Publicá el buscador (el Worker) siguiendo [`worker/README.md`](worker/README.md).
+2. **Para desarrollo:** copiá `.env.example` como **`.env.local`** y completá la dirección del Worker:
 
-## What's inside
+   ```
+   VITE_SEARCH_API_URL=https://afterhours-search.TU-USUARIO.workers.dev
+   ```
 
-- **Hero**: a live canvas landscape (ridgelines and a drifting light that leans toward the pointer),
-  the visitor's local clock and time zone, and a masked headline reveal after a short title card.
-  The title card plays once per session.
-- **01 Sound Room**: four moods, each with its own SVG cover, palette and track. There's one shared
-  `<audio>` element, routed through Web Audio for the live spectrum and a gain-based volume
-  control (which also works on iOS). The player has a waveform scrubber with keyboard seeking
-  (←/→ 5 s, PgUp/PgDn 15 s). Playback states come only from real media events, and missing files
-  show an error that names the file.
-- **02 The Void**: a journal saved to `localStorage` (`afterhours.journal.v1`). It autosaves,
-  shows character and word counts, lets you undo a delete, syncs across tabs and handles blocked
-  storage.
-- **03 Night Archive**: twelve generative works drawn on canvas from fixed seeds (`src/lib/art.ts`),
-  shown as real `<img>` elements. They sit in an asymmetric grid with category filters and a
-  detail view you can drive from the keyboard.
-- **Motion**: a custom cursor (fine pointers only), scroll reveals and film grain. With
-  `prefers-reduced-motion` the intro, loops and transitions are switched off.
+   Después volvé a correr `npm run dev`. `.env.local` no se sube a GitHub.
+3. **Para la versión publicada:** poné la misma dirección en **`.env.production`**. Ese archivo sí
+   está versionado, para que `npm run deploy` funcione desde cualquier máquina (o desde Claude
+   Code). La dirección del Worker no es secreta.
 
-## Audio
+Al armar la versión publicada, `.env.production` tiene prioridad sobre `.env.local`. Si queda vacía,
+la web publicada sale en modo demo.
 
-The four tracks in `public/audio/` were composed for this project by
-`scripts/generate-audio.mjs`. It's a small offline synthesiser (oscillators, Karplus–Strong
-strings, FM bells and a Freeverb-style reverb), and its output is encoded to MP3 with ffmpeg, so
-there are no licensing questions.
+**La clave de Unsplash nunca va en este proyecto**, ni en `.env.local` ni en `.env.production`:
+vive solo como secreto dentro del Worker.
 
-To use your own music, replace any of these files with an MP3 of the same name:
+## Cómo funciona la búsqueda
 
 ```
-public/audio/midnight-drive.mp3
-public/audio/deep-focus.mp3
-public/audio/ocean-at-night.mp3
-public/audio/no-sleep-club.mp3
+Navegador (Studio)  →  Worker en Cloudflare  →  API de Unsplash
+                        (guarda la clave)
 ```
 
-Durations are read from the files. The waveform peaks in `src/data/waveforms.json` are produced by
-`npm run audio`, so regenerate them (or edit that file) if you want the scrubber shape to match new
-audio.
+- El Studio le pide al Worker `GET /search?query=…&per_page=15&page=1`, una vez por etiqueta.
+- El Worker agrega la clave, llama a Unsplash con `content_filter=high`, normaliza las fotos al tipo
+  `Photo` (`shared/types.ts`) y responde `{ total, photos }`.
+- Las fotos se muestran con las URLs de Unsplash tal cual llegan (hotlinking), y los links al autor
+  y a Unsplash llevan `utm_source=afterhours&utm_medium=referral`, como pide Unsplash.
+- El Worker solo acepta pedidos de los orígenes permitidos (`ALLOWED_ORIGINS`), valida los
+  parámetros, guarda las búsquedas una hora y responde errores claros en JSON (clave inválida,
+  límite de pedidos, Unsplash caído).
+- Las claves nuevas de Unsplash permiten **50 pedidos por hora**. El Studio avisa cuántos va a usar
+  cada búsqueda y no repite las etiquetas que ya buscaste en la misma visita.
 
-## Project structure
+Todos los detalles, incluida la publicación paso a paso, están en [`worker/README.md`](worker/README.md).
+
+## Scripts
+
+| Script | Qué hace |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo en http://localhost:5173 |
+| `npm run build` | Revisa los tipos y arma la web en `dist/` |
+| `npm run preview` | Sirve la versión armada |
+| `npm run typecheck` | Solo revisa los tipos |
+| `npm run lint` | Revisa el código con oxlint |
+| `npm run deploy` | Arma la web para GitHub Pages y la publica en la rama `gh-pages` (funciona en Windows, macOS y Linux) |
+
+Para publicar con la búsqueda conectada, `npm run deploy` usa la `VITE_SEARCH_API_URL` de
+`.env.production` (versionado).
+
+En `worker/`: `npm test` (pruebas con Unsplash simulado), `npm run typecheck`, `npm run build`
+(regenera `worker.js`), `npm run dev` y `npm run deploy` (con wrangler).
+
+## Estructura
 
 ```
 src/
-  components/        PlayerProvider, Header, Hero(+Canvas), Intro, Cursor, Marquee, Journal, Footer…
-    sound/           SoundRoom, MoodCover, Waveform, Spectrum
-    archive/         Archive, ArchiveModal, Artwork
-  hooks/             useAudioPlayer (player context), useJournal, useDialog, useClock, useTrackDurations
-  lib/               art.ts (generative renderers), format.ts
-  data/              moods, archive, nav, waveforms.json
-scripts/generate-audio.mjs
+  App.tsx              router por hash (#/ y #/studio), foco y scroll al cambiar de vista
+  views/               HomeView (portada) y StudioView
+  components/          Header, Footer, Hero, HeroCanvas, Intro, Cursor, Marquee, Reveal,
+                       SectionHeader, CreateButton, HowItWorks, StudioProvider
+    studio/            IdeaEditor, TagChips, Results, PhotoFrame, PhotoViewer, PhotoCredit
+  hooks/               useStudio, useDialog, useClock
+  lib/                 router, tags, searchApi, unsplash, layouts (grilla para la etapa 2), format
+shared/types.ts        tipo Photo y respuestas, compartidos con el Worker
+worker/                Cloudflare Worker de búsqueda (proyecto aparte)
+scripts/deploy-pages.mjs
 ```
 
-Fonts (Big Shoulders Display, Inter Tight, Instrument Serif, JetBrains Mono) are Google Fonts,
-self-hosted through `@fontsource`, so the site makes no third-party requests.
+## Diseño
+
+Fondo #090909, texto #F1F0E8 y verde ácido #C7FF3D. Tipografías Big Shoulders Display, Inter Tight,
+Instrument Serif y JetBrains Mono (Google Fonts incluidas en el proyecto con `@fontsource`). Grano de
+película, cursor propio en pantallas con mouse y animaciones que respetan «reducir movimiento» del
+sistema. Funciona con teclado y desde 375 px de ancho.

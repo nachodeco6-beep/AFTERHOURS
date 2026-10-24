@@ -1,51 +1,15 @@
-import { ArrowDownRight } from 'lucide-react'
-import { useRef, type CSSProperties, type PointerEvent } from 'react'
+import type { CSSProperties } from 'react'
 import { timeZoneLabel, useClock } from '../hooks/useClock'
-import { formatClock, nightPhase } from '../lib/format'
+import { formatClock } from '../lib/format'
+import { CreateButton } from './CreateButton'
 import { HeroCanvas } from './HeroCanvas'
 
 const LINES = [
-  { text: 'The world', indent: false },
-  { text: 'goes quiet.', indent: false },
-  { text: 'We come', indent: true },
-  { text: 'alive.', indent: true, accent: true },
+  { text: 'From', indent: false },
+  { text: 'Vision', indent: false },
+  { text: 'To', indent: true },
+  { text: 'Visual', indent: true, accent: true },
 ]
-
-function EnterButton() {
-  const ref = useRef<HTMLAnchorElement>(null)
-
-  // gentle magnetic pull toward the pointer
-  const onMove = (e: PointerEvent<HTMLAnchorElement>) => {
-    if (e.pointerType !== 'mouse' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const el = ref.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const x = (e.clientX - r.left - r.width / 2) / r.width
-    const y = (e.clientY - r.top - r.height / 2) / r.height
-    el.style.transform = `translate3d(${x * 10}px, ${y * 8}px, 0)`
-  }
-  const onLeave = () => {
-    if (ref.current) ref.current.style.transform = ''
-  }
-
-  return (
-    <a
-      ref={ref}
-      href="#sound-room"
-      onPointerMove={onMove}
-      onPointerLeave={onLeave}
-      data-cursor="Enter"
-      className="btn-fill group inline-flex h-16 items-center gap-6 bg-acid pr-5 pl-6 text-ink transition-transform duration-500 ease-[var(--ease-out-expo)] [--fill-color:var(--color-bone)] sm:h-[4.5rem] sm:pl-7"
-    >
-      <span className="display text-[1.65rem] leading-none tracking-[0.02em] sm:text-[1.9rem]">Enter the night</span>
-      <ArrowDownRight
-        className="size-6 transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:rotate-[-45deg]"
-        strokeWidth={1.5}
-        aria-hidden="true"
-      />
-    </a>
-  )
-}
 
 export function Hero({ ready }: { ready: boolean }) {
   const now = useClock()
@@ -64,15 +28,15 @@ export function Hero({ ready }: { ready: boolean }) {
         {/* top meta row */}
         <div className="grid grid-cols-2 gap-6 border-t border-line/70 pt-4 md:grid-cols-12">
           <p className="label text-mute md:col-span-3">
-            N° 00 <span className="text-dim">/</span> An index of the night
+            N° 00 <span className="text-dim">/</span> Estudio creativo digital
           </p>
           <p className="label hidden text-mute md:col-span-4 md:col-start-5 md:block">
-            For night owls, designers,
+            Para directores de arte,
             <br />
-            musicians &amp; restless minds
+            diseñadores y marcas
           </p>
           <div className="text-right md:col-span-3 md:col-start-10">
-            <p className="label-sm text-dim">Your local time</p>
+            <p className="label-sm text-dim">Tu hora local</p>
             <p className="mt-1 font-mono text-[1.0625rem] tabular-nums tracking-[0.06em] text-bone sm:text-lg" aria-live="off">
               <time dateTime={now.toISOString()}>
                 {hh}
@@ -82,16 +46,18 @@ export function Hero({ ready }: { ready: boolean }) {
                 <span className="text-mute">{ss}</span>
               </time>
             </p>
-            <p className="label-sm mt-1 text-mute">
-              {nightPhase(now)}
-              <span className="hidden sm:inline"> · {timeZoneLabel()}</span>
-            </p>
+            <p className="label-sm mt-1 text-mute">{timeZoneLabel()}</p>
           </div>
         </div>
 
         {/* headline */}
-        <h1 id="hero-title" className="display mt-auto pt-10 text-[clamp(3.4rem,min(16vw,15svh),14rem)] text-bone md:text-[clamp(4rem,min(11vw,13.5svh),15rem)]">
-          <span className="sr-only">The world goes quiet. We come alive.</span>
+        <h1
+          id="hero-title"
+          tabIndex={-1}
+          data-route-title
+          className="display mt-auto pt-10 outline-none text-[clamp(3.4rem,min(22vw,12svh),14rem)] text-bone md:text-[clamp(4rem,min(11vw,13.5svh),15rem)]"
+        >
+          <span className="sr-only">From vision to visual</span>
           {LINES.map((line, i) => (
             <span
               key={line.text}
@@ -107,22 +73,22 @@ export function Hero({ ready }: { ready: boolean }) {
         {/* bottom row */}
         <div className="mt-8 grid items-end gap-8 md:mt-10 md:grid-cols-12">
           <p className="max-w-[26rem] text-[0.9375rem] leading-relaxed text-mute md:col-span-5">
-            <span className="editorial text-[1.35rem] leading-none text-bone">A place for the hours</span>{' '}
-            nobody schedules. Music for the drive home, a page for the thoughts that arrive at 3 a.m., and an archive of work
-            made while everyone else was asleep.
+            <span className="editorial text-[1.35rem] leading-none text-bone">Escribí una idea.</span> AFTERHOURS busca
+            fotografías reales y te ayuda a convertirla en una dirección visual.
           </p>
           <div className="flex items-end justify-between gap-6 md:col-span-7 md:justify-end md:gap-12">
-            <EnterButton />
-            <a
-              href="#sound-room"
+            <CreateButton />
+            <button
+              type="button"
+              onClick={() => document.getElementById('como-funciona')?.scrollIntoView()}
               className="group flex flex-col items-center gap-3 text-mute hover:text-bone"
-              aria-label="Scroll to the Sound Room"
+              aria-label="Bajar a «Cómo funciona»"
             >
-              <span className="label-sm [writing-mode:vertical-rl]">Scroll</span>
+              <span className="label-sm [writing-mode:vertical-rl]">Bajar</span>
               <span aria-hidden="true" className="relative block h-14 w-px overflow-hidden bg-line">
                 <span className="absolute inset-x-0 top-0 h-1/2 animate-[scrollcue_2.2s_var(--ease-in-out-quart)_infinite] bg-acid" />
               </span>
-            </a>
+            </button>
           </div>
         </div>
       </div>

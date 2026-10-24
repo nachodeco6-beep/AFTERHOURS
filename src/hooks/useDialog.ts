@@ -49,7 +49,10 @@ export function useDialog(ref: RefObject<HTMLElement | null>, open: boolean, onC
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
       document.body.style.paddingRight = prevPadding
-      opener?.focus({ preventScroll: true })
+      // Hand focus back to the opener, unless something outside the dialog
+      // already took it (e.g. a route change focused the new view's title).
+      const current = document.activeElement
+      if (!current || current === document.body || node?.contains(current)) opener?.focus({ preventScroll: true })
     }
   }, [open, ref])
 }
