@@ -29,6 +29,20 @@ export function rgbToLab([r, g, b]: RGB): Lab {
   return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]
 }
 
+/** CIE Lab (D65) → sRGB (0–255), clamped. */
+export function labToRgb([L, a, b]: Lab): RGB {
+  const fy = (L + 16) / 116
+  const fx = fy + a / 500
+  const fz = fy - b / 200
+  const inv = (t: number) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787)
+  const [x, y, z] = [inv(fx) * 0.95047, inv(fy), inv(fz) * 1.08883]
+  const R = x * 3.2406 + y * -1.5372 + z * -0.4986
+  const G = x * -0.9689 + y * 1.8758 + z * 0.0415
+  const B = x * 0.0557 + y * -0.204 + z * 1.057
+  const gamma = (c: number) => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)
+  return [gamma(R), gamma(G), gamma(B)].map((v) => Math.round(Math.max(0, Math.min(255, v)))) as RGB
+}
+
 /** CIE76 distance between two colours in Lab. ~2.3 is a just-noticeable difference; 100+ is opposite. */
 export function deltaE(a: Lab, b: Lab): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
