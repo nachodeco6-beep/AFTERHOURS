@@ -88,6 +88,27 @@ test('origins outside ALLOWED_ORIGINS are refused', async () => {
   assert.equal(calls.length, 0)
 })
 
+test('requests without Origin are refused, except the status check', async () => {
+  mockUnsplash(() => Response.json({ total: 0, results: [] }))
+  for (const path of ['/search?query=surf', '/download?id=abc']) {
+    const res = await get(path, {})
+    assert.equal(res.status, 403, path)
+    assert.equal(res.headers.get('Access-Control-Allow-Origin'), null)
+    assert.equal((await res.json()).error.code, 'origin_not_allowed', path)
+  }
+  const pre = await get('/search', { 'Access-Control-Request-Method': 'GET' }, 'OPTIONS')
+  assert.equal(pre.status, 403, 'preflight without Origin')
+  assert.equal(calls.length, 0, 'Unsplash never called')
+
+  const root = await get('/', {})
+  assert.equal(root.status, 200)
+  assert.equal(root.headers.get('Access-Control-Allow-Origin'), null)
+  assert.equal((await root.json()).keyConfigured, true)
+  const rootEvil = await get('/', { Origin: 'https://evil.example' })
+  assert.equal(rootEvil.status, 200, 'status check stays open')
+  assert.equal(rootEvil.headers.get('Access-Control-Allow-Origin'), null)
+})
+
 test('preflight answers allowed origins', async () => {
   const res = await get('/search', { Origin: ORIGIN, 'Access-Control-Request-Method': 'GET' }, 'OPTIONS')
   assert.equal(res.status, 204)

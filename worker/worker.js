@@ -173,9 +173,24 @@ async function handleDownload(url, env) {
 }
 var index_default = {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
     const origin = request.headers.get("Origin");
-    if (origin !== null && !allowedOrigins(env).includes(origin)) {
-      return fail("origin_not_allowed", 403, `El origen ${origin} no tiene permiso para usar esta b\xFAsqueda.`);
+    const allowed = origin !== null && allowedOrigins(env).includes(origin);
+    if (url.pathname === "/" && request.method === "GET") {
+      const status = json({
+        service: "afterhours-search",
+        ok: true,
+        keyConfigured: Boolean(env.UNSPLASH_ACCESS_KEY?.trim()),
+        endpoints: ["/search?query=\u2026&per_page=15&page=1", "/download?id=\u2026"]
+      });
+      return withCors(status, allowed ? origin : null);
+    }
+    if (!allowed) {
+      return fail(
+        "origin_not_allowed",
+        403,
+        origin === null ? "Este buscador solo responde a la web de AFTERHOURS (el pedido no trae la cabecera Origin)." : `El origen ${origin} no tiene permiso para usar esta b\xFAsqueda.`
+      );
     }
     if (request.method === "OPTIONS") {
       return withCors(
@@ -193,18 +208,10 @@ var index_default = {
     if (request.method !== "GET") {
       return withCors(fail("method_not_allowed", 405, "Solo se aceptan pedidos GET."), origin);
     }
-    const url = new URL(request.url);
     let response;
     try {
       if (url.pathname === "/search") response = await handleSearch(url, env, ctx);
       else if (url.pathname === "/download") response = await handleDownload(url, env);
-      else if (url.pathname === "/")
-        response = json({
-          service: "afterhours-search",
-          ok: true,
-          keyConfigured: Boolean(env.UNSPLASH_ACCESS_KEY?.trim()),
-          endpoints: ["/search?query=\u2026&per_page=15&page=1", "/download?id=\u2026"]
-        });
       else response = fail("not_found", 404, "Esta direcci\xF3n no existe. Us\xE1 /search o /download.");
     } catch {
       response = fail("unsplash_error", 500, "Algo fall\xF3 dentro del Worker.");

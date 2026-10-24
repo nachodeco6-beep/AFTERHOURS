@@ -5,8 +5,9 @@
  *   GET /search?query=…&per_page=15&page=1  → { total, photos }
  *   GET /download?id=…                      → { url } (Unsplash's required download ping)
  *
- * The key lives in the UNSPLASH_ACCESS_KEY secret. Only the origins listed in
- * ALLOWED_ORIGINS get CORS access.
+ * The key lives in the UNSPLASH_ACCESS_KEY secret. /search and /download only
+ * answer requests whose Origin is listed in ALLOWED_ORIGINS; `/` is an open
+ * status check.
  */
 import type { ApiErrorBody, ApiErrorCode, DownloadResponse, Photo, SearchResponse } from '../../shared/types'
 
@@ -260,11 +261,32 @@ async function handleDownload(url: URL, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url)
     const origin = request.headers.get('Origin')
-    // Browsers always send Origin on cross-origin fetches; unknown sites are refused.
-    // Requests without Origin (opening the URL in a tab, curl) are served without CORS headers.
-    if (origin !== null && !allowedOrigins(env).includes(origin)) {
-      return fail('origin_not_allowed', 403, `El origen ${origin} no tiene permiso para usar esta búsqueda.`)
+    const allowed = origin !== null && allowedOrigins(env).includes(origin)
+
+    // `/` stays open to anyone as a status check; it never touches Unsplash.
+    if (url.pathname === '/' && request.method === 'GET') {
+      const status = json({
+        service: 'afterhours-search',
+        ok: true,
+        keyConfigured: Boolean(env.UNSPLASH_ACCESS_KEY?.trim()),
+        endpoints: ['/search?query=…&per_page=15&page=1', '/download?id=…'],
+      })
+      return withCors(status, allowed ? origin : null)
+    }
+
+    // Everything else only answers pages listed in ALLOWED_ORIGINS. Requests
+    // without Origin (a browser tab, curl, scripts) are refused too: the Worker
+    // URL is public in the site's JavaScript and the Unsplash quota is small.
+    if (!allowed) {
+      return fail(
+        'origin_not_allowed',
+        403,
+        origin === null
+          ? 'Este buscador solo responde a la web de AFTERHOURS (el pedido no trae la cabecera Origin).'
+          : `El origen ${origin} no tiene permiso para usar esta búsqueda.`,
+      )
     }
 
     if (request.method === 'OPTIONS') {
@@ -284,18 +306,10 @@ export default {
       return withCors(fail('method_not_allowed', 405, 'Solo se aceptan pedidos GET.'), origin)
     }
 
-    const url = new URL(request.url)
     let response: Response
     try {
       if (url.pathname === '/search') response = await handleSearch(url, env, ctx)
       else if (url.pathname === '/download') response = await handleDownload(url, env)
-      else if (url.pathname === '/')
-        response = json({
-          service: 'afterhours-search',
-          ok: true,
-          keyConfigured: Boolean(env.UNSPLASH_ACCESS_KEY?.trim()),
-          endpoints: ['/search?query=…&per_page=15&page=1', '/download?id=…'],
-        })
       else response = fail('not_found', 404, 'Esta dirección no existe. Usá /search o /download.')
     } catch {
       response = fail('unsplash_error', 500, 'Algo falló dentro del Worker.')
