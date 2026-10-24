@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { SearchResponse } from '../../shared/types'
 import { StudioContext, type Board, type Include, type Picked, type StudioApi, type TagResult, type ToggleResult } from '../hooks/useStudio'
+import { DEFAULT_FORMAT } from '../lib/formats'
 import { poolOf } from '../lib/pool'
 import { SearchFailure, searchPhotos } from '../lib/searchApi'
 import { completeSelection, MAX_SELECTION, type Entry } from '../lib/select'
@@ -125,6 +126,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setBoard((prev) => ({
         title: prev?.title ?? capitalize(first),
         template: prev?.template ?? 'editorial',
+        format: prev?.format ?? DEFAULT_FORMAT,
         include,
         pairOffset: prev?.pairOffset ?? 0,
         notes: prev?.notes ?? null,
