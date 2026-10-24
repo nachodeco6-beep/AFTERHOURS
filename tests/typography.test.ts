@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { TYPE_PAIRS } from '../src/data/typePairs.ts'
-import { googleFontsUrl, normalize, rankPairs, scorePair } from '../src/lib/typography.ts'
+import { fontCss, fontStack, googleFontsUrl, normalize, rankPairs, scorePair } from '../src/lib/typography.ts'
 
 const byId = (id: number) => TYPE_PAIRS.find((p) => p.id === id)!
 
@@ -44,6 +44,7 @@ test('no match falls back to the neutral editorial Nacho pick, then other Nacho 
 test('Google Fonts URL asks for the special cuts', () => {
   assert.equal(googleFontsUrl(byId(2)), 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,400..900&family=Inter&display=swap')
   assert.match(googleFontsUrl(byId(6))!, /family=Fraunces:wght,SOFT@400\.\.900,0\.\.100/)
+  assert.equal(googleFontsUrl(byId(7)), 'https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Open+Sans&display=swap')
   assert.match(googleFontsUrl(byId(8))!, /family=Archivo:wdth,wght@62\.\.125,400\.\.700/)
   assert.equal(googleFontsUrl(byId(1)), 'https://fonts.googleapis.com/css2?family=Playfair+Display&family=Montserrat&display=swap')
 })
@@ -52,4 +53,11 @@ test('fonts already on the site are not requested again', () => {
   assert.equal(googleFontsUrl(byId(23)), null) // Big Shoulders Display + Inter Tight
   assert.equal(googleFontsUrl(byId(31)), null) // JetBrains Mono + Inter Tight
   assert.equal(googleFontsUrl(byId(29)), 'https://fonts.googleapis.com/css2?family=Sora&family=Inter&display=swap')
+})
+
+test('display weights: Fraunces black with SOFT 100, Cinzel 600, the rest 400', () => {
+  assert.deepEqual(fontCss(byId(6).display), { fontFamily: fontStack(byId(6).display), fontWeight: 900, fontVariationSettings: "'SOFT' 100" })
+  assert.equal(fontCss(byId(7).display).fontWeight, 600)
+  const others = TYPE_PAIRS.filter((p) => p.id !== 6 && p.id !== 7)
+  assert.ok(others.every((p) => fontCss(p.display).fontWeight === 400 && fontCss(p.text).fontWeight === 400))
 })

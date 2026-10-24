@@ -67,7 +67,11 @@ export function rankPairs(concept: string[]): TypePair[] {
 /** Fonts we already ship with the site; no need to ask Google for them. */
 const SELF_HOSTED = new Set(['Big Shoulders Display', 'Inter Tight', 'JetBrains Mono'])
 
-const familyParam = (f: FontSpec) => f.query ?? f.family.replace(/ /g, '+')
+const familyParam = (f: FontSpec) => {
+  if (f.query) return f.query
+  const name = f.family.replace(/ /g, '+')
+  return f.weight && f.weight !== 400 ? `${name}:wght@${f.weight}` : name
+}
 
 /** Google Fonts css2 URL for just the fonts of this pair, or null if both are already on the site. */
 export function googleFontsUrl(pair: TypePair): string | null {
@@ -87,3 +91,6 @@ const FALLBACK: Record<FontSpec['kind'], string> = {
 }
 
 export const fontStack = (f: FontSpec) => `'${f.family}', ${FALLBACK[f.kind]}`
+
+/** Everything needed to set this font as requested: family, weight and special cuts. */
+export const fontCss = (f: FontSpec) => ({ fontFamily: fontStack(f), fontWeight: f.weight ?? 400, ...f.style })

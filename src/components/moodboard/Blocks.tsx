@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { TypePair } from '../../data/typePairs'
 import { hexToRgb, luminance } from '../../lib/color'
 import type { PaletteResult } from '../../lib/paletteImage'
-import { fontStack, specimenUrl } from '../../lib/typography'
+import { fontCss, specimenUrl } from '../../lib/typography'
 
 /** Every block fills its grid cell on desktop and takes its natural height on mobile. */
 const BLOCK = 'relative flex h-full min-h-0 w-full flex-col overflow-hidden [container-type:size] max-md:[container-type:inline-size]'
@@ -78,8 +78,8 @@ export function PaletteBlock({ palette, loading, vertical }: { palette: PaletteR
 // ─── Type ───────────────────────────────────────────────────────────────────
 
 export function TypeBlock({ pair, fontsReady }: { pair: TypePair; fontsReady: boolean | null }) {
-  const display: CSSProperties = { fontFamily: fontStack(pair.display), ...pair.display.style }
-  const text: CSSProperties = { fontFamily: fontStack(pair.text), ...pair.text.style }
+  const display: CSSProperties = fontCss(pair.display)
+  const text: CSSProperties = fontCss(pair.text)
   return (
     <div className={`${BLOCK} justify-between gap-3 border border-line p-4`}>
       <div className="flex items-baseline justify-between gap-2">

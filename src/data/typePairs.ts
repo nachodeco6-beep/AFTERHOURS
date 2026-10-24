@@ -5,7 +5,9 @@ export interface FontSpec {
   family: string
   /** Generic fallback while the font loads. */
   kind: 'serif' | 'sans' | 'mono' | 'script'
-  /** Google Fonts css2 `family=` value when the default (regular 400) isn't enough. */
+  /** Weight to load and show; 400 when omitted. */
+  weight?: number
+  /** Google Fonts css2 `family=` value when the default (regular 400, or `weight`) isn't enough. */
   query?: string
   /** How the font must be set to show the requested cut (italic, SOFT axis, expanded width). */
   style?: Pick<CSSProperties, 'fontStyle' | 'fontStretch' | 'fontVariationSettings'>
@@ -28,8 +30,8 @@ export const TYPE_PAIRS: TypePair[] = [
   { id: 3, display: { family: 'Cormorant Garamond', kind: 'serif' }, text: { family: 'Lato', kind: 'sans' }, category: 'Editorial', tags: ['clásico', 'arquitectura', 'sereno', 'atemporal'], nacho: true },
   { id: 4, display: { family: 'Bodoni Moda', kind: 'serif' }, text: { family: 'Open Sans', kind: 'sans' }, category: 'Lujo y moda', tags: ['lujo', 'moda', 'clásico', 'revista'], nacho: true },
   { id: 5, display: { family: 'Permanent Marker', kind: 'script' }, text: { family: 'Questrial', kind: 'sans' }, category: 'Urbano', tags: ['urbano', 'juvenil', 'pop', 'callejero'], nacho: true },
-  { id: 6, display: { family: 'Fraunces', kind: 'serif', query: 'Fraunces:wght,SOFT@400..900,0..100', style: { fontVariationSettings: "'SOFT' 100" } }, text: { family: 'Montserrat', kind: 'sans' }, category: 'Retro', tags: ['retro', '70s', 'cálido', 'floral'], nacho: true },
-  { id: 7, display: { family: 'Cinzel', kind: 'serif' }, text: { family: 'Open Sans', kind: 'sans' }, category: 'Natural', tags: ['natural', 'clásico', 'orgánico', 'sobrio'], nacho: true },
+  { id: 6, display: { family: 'Fraunces', kind: 'serif', weight: 900, query: 'Fraunces:wght,SOFT@400..900,0..100', style: { fontVariationSettings: "'SOFT' 100" } }, text: { family: 'Montserrat', kind: 'sans' }, category: 'Retro', tags: ['retro', '70s', 'cálido', 'floral'], nacho: true },
+  { id: 7, display: { family: 'Cinzel', kind: 'serif', weight: 600 }, text: { family: 'Open Sans', kind: 'sans' }, category: 'Natural', tags: ['natural', 'clásico', 'orgánico', 'sobrio'], nacho: true },
   { id: 8, display: { family: 'Alfa Slab One', kind: 'serif' }, text: { family: 'Archivo', kind: 'sans', query: 'Archivo:wdth,wght@62..125,400..700', style: { fontStretch: '125%' } }, category: 'Deporte', tags: ['deporte', 'college', 'americano', 'potente'], nacho: true },
   { id: 9, display: { family: 'Bebas Neue', kind: 'sans' }, text: { family: 'Montserrat', kind: 'sans' }, category: 'Urbano', tags: ['urbano', 'street', 'techno', 'gráfico'], nacho: true },
   { id: 10, display: { family: 'Abril Fatface', kind: 'serif' }, text: { family: 'Josefin Sans', kind: 'sans' }, category: 'Romántico', tags: ['romántico', 'primavera', 'femenino', 'delicado'], nacho: true },

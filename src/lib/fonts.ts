@@ -3,7 +3,7 @@ import { googleFontsUrl } from './typography'
 
 const TIMEOUT_MS = 5000
 
-const descriptor = (f: FontSpec) => `${f.style?.fontStyle === 'italic' ? 'italic ' : ''}400 1em '${f.family}'`
+const descriptor = (f: FontSpec) => `${f.style?.fontStyle === 'italic' ? 'italic ' : ''}${f.weight ?? 400} 1em '${f.family}'`
 
 /**
  * Loads only the fonts of this pair from Google Fonts, on demand. Resolves

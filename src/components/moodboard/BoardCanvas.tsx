@@ -6,7 +6,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { compose, composeMobile, type BlockKind, type Item, type Template } from '../../lib/compose'
 import { pad } from '../../lib/format'
 import type { PaletteResult } from '../../lib/paletteImage'
-import { fontStack } from '../../lib/typography'
+import { fontCss } from '../../lib/typography'
 import { PhotoCredit } from '../studio/PhotoCredit'
 import { PhotoFrame } from '../studio/PhotoFrame'
 import { KeywordsBlock, NotesBlock, PaletteBlock, TypeBlock } from './Blocks'
@@ -57,7 +57,8 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
   const mobile = useMemo(() => (desktop ? null : composeMobile(ratios, blocks, template)), [desktop, ratios, blocks, template])
   const air = AIR[template]
 
-  const titleStyle: CSSProperties = include.type ? { fontFamily: fontStack(pair.display), ...pair.display.style, textTransform: 'none' } : {}
+  // the pair's own weight overrides .display's 900, so 400-only fonts aren't faux-bolded
+  const titleStyle: CSSProperties = include.type ? { ...fontCss(pair.display), textTransform: 'none' } : {}
 
   const render = (item: Item, widthShare: number, vertical: boolean): ReactNode => {
     switch (item.kind) {
