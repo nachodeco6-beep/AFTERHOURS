@@ -214,13 +214,13 @@ html.has-cursor input[type='text'] {
   transform: scale(0.98);
 }
 
-/* ─── Journal ───────────────────────────────────────────────────────────── */
+/* ─── Studio idea editor (the old journal editor) ──────────────────────── */
 
-.journal-editor {
+.idea-editor {
   field-sizing: content;
 }
 
-.journal-editor::placeholder {
+.idea-editor::placeholder {
   color: var(--color-dim);
   opacity: 1;
 }

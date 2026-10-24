@@ -27,7 +27,8 @@ export function PhotoFrame({ photo, className = 'relative', eager = false, fit =
   const srcSet = size === 'grid' ? `${photo.urls.small} 400w, ${photo.urls.regular} 1080w` : undefined
 
   return (
-    <div className={`overflow-hidden ${className}`} style={{ backgroundColor: photo.color ?? undefined } as CSSProperties}>
+    // the dominant colour is only a placeholder: once the photo is in, it must not frame it (fit="contain")
+    <div className={`overflow-hidden ${className}`} style={{ backgroundColor: loaded ? undefined : (photo.color ?? undefined) } as CSSProperties}>
       {!loaded && !failed && (
         <div aria-hidden="true" className="absolute inset-0 flex items-end bg-ink/55 p-3">
           <span className="label-sm text-bone/70">Revelando…</span>
