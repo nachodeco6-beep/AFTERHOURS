@@ -36,6 +36,8 @@
 
   body {
     margin: 0;
+    /* room for the fixed «Tu selección» tray, set by SelectionTray */
+    padding-bottom: var(--tray-space, 0px);
     min-height: 100dvh;
     background: var(--color-ink);
     font-family: var(--font-sans);

@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, ArrowUpRight } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Check, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Photo } from '../../../shared/types'
 import { useStudio, type TagResult } from '../../hooks/useStudio'
 import { pad } from '../../lib/format'
+import { dedupeGroups } from '../../lib/pool'
+import { MAX_SELECTION } from '../../lib/select'
 import { PhotoCredit } from './PhotoCredit'
 import { PhotoFrame } from './PhotoFrame'
 import { PhotoViewer } from './PhotoViewer'
@@ -17,11 +19,18 @@ interface Group extends TagResult {
 
 const ALL = '__all__'
 
-function PhotoCard({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+interface CardProps {
+  photo: Photo
+  selected: boolean
+  onOpen: () => void
+  onToggle: () => void
+}
+
+function PhotoCard({ photo, selected, onOpen, onToggle }: CardProps) {
   // very tall photos are cropped a little so one image can't swallow a column
   const ratio = Math.max(photo.width / photo.height, 0.6)
   return (
-    <figure className="group">
+    <figure className="group relative">
       <button
         type="button"
         onClick={onOpen}
@@ -41,6 +50,20 @@ function PhotoCard({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
         >
           <ArrowUpRight className="size-4" strokeWidth={1.75} />
         </span>
+        {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 shadow-[inset_0_0_0_3px_var(--color-acid)]" />}
+      </button>
+      {/* separate from the open button: touching the photo still opens the viewer */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={selected}
+        aria-label={selected ? `Sacar del moodboard la foto de ${photo.author.name}` : `Sumar al moodboard la foto de ${photo.author.name}`}
+        title={selected ? 'Sacar de tu selección' : 'Sumar a tu selección'}
+        className={`absolute top-2 left-2 grid size-10 place-items-center border transition-colors ${
+          selected ? 'border-acid bg-acid text-ink' : 'border-bone/40 bg-ink/70 text-bone hover:border-acid hover:text-acid'
+        }`}
+      >
+        {selected ? <Check className="size-4" strokeWidth={2.5} aria-hidden="true" /> : <Plus className="size-4" strokeWidth={2} aria-hidden="true" />}
       </button>
       <figcaption>
         <PhotoCredit photo={photo} className="mt-2 text-xs leading-snug text-mute" />
@@ -60,7 +83,14 @@ function GroupStatus({ group }: { group: Group }) {
   )
 }
 
-function GroupBody({ group, onOpen }: { group: Group; onOpen: (photo: Photo) => void }) {
+interface GroupBodyProps {
+  group: Group
+  onOpen: (photo: Photo) => void
+  isSelected: (id: string) => boolean
+  onToggle: (photo: Photo, tag: string) => void
+}
+
+function GroupBody({ group, onOpen, isSelected, onToggle }: GroupBodyProps) {
   if (group.status === 'loading') {
     return (
       <p className="label flex items-center gap-3 py-10 text-mute">
@@ -89,7 +119,7 @@ function GroupBody({ group, onOpen }: { group: Group; onOpen: (photo: Photo) => 
     <ul className="columns-2 gap-3 sm:gap-4 md:columns-3 xl:columns-4">
       {group.photos.map((photo) => (
         <li key={photo.id} className="mb-5 break-inside-avoid sm:mb-6">
-          <PhotoCard photo={photo} onOpen={() => onOpen(photo)} />
+          <PhotoCard photo={photo} selected={isSelected(photo.id)} onOpen={() => onOpen(photo)} onToggle={() => onToggle(photo, group.tag)} />
         </li>
       ))}
     </ul>
@@ -98,19 +128,24 @@ function GroupBody({ group, onOpen }: { group: Group; onOpen: (photo: Photo) => 
 
 /** The photo pool, grouped by tag, without repeating a photo across tags. */
 export function Results({ results }: { results: TagResult[] }) {
-  const { searching } = useStudio()
+  const { searching, isSelected, toggleSelect, selection } = useStudio()
   const [filter, setFilter] = useState(ALL)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [notice, setNotice] = useState('')
 
-  const groups = useMemo<Group[]>(() => {
-    const seen = new Set<string>()
-    return results.map((r, index) => ({
-      ...r,
-      index,
-      fetched: r.photos.length,
-      photos: r.photos.filter((p) => !seen.has(p.id) && (seen.add(p.id), true)),
-    }))
-  }, [results])
+  const groups = useMemo<Group[]>(() => dedupeGroups(results), [results])
+
+  const toggle = (photo: Photo, tag: string) => {
+    const result = toggleSelect({ photo, tag })
+    const count = selection.length + (result === 'added' ? 1 : result === 'removed' ? -1 : 0)
+    setNotice(
+      result === 'full'
+        ? `Llegaste al máximo de ${MAX_SELECTION} fotos. Sacá alguna para sumar otra.`
+        : result === 'added'
+          ? `Foto de ${photo.author.name} sumada a tu selección (${count} de ${MAX_SELECTION}).`
+          : `Foto de ${photo.author.name} sacada de tu selección (${count} de ${MAX_SELECTION}).`,
+    )
+  }
 
   const active = groups.some((g) => g.tag === filter) ? filter : ALL
   const visible = active === ALL ? groups : groups.filter((g) => g.tag === active)
@@ -131,10 +166,25 @@ export function Results({ results }: { results: TagResult[] }) {
 
   return (
     <section aria-labelledby="results-title" aria-busy={searching} className="mt-20 md:mt-28">
+      <p className="sr-only" role="status" aria-live="polite">
+        {notice}
+      </p>
+      {notice.startsWith('Llegaste') && (
+        <p className="mb-6 border border-alarm/50 p-3 text-sm text-bone" aria-hidden="true">
+          {notice}
+        </p>
+      )}
+
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <h2 id="results-title" className="display text-[clamp(2.75rem,7vw,6rem)] text-bone">
-          Referencias
-        </h2>
+        <div>
+          <h2 id="results-title" tabIndex={-1} className="display text-[clamp(2.75rem,7vw,6rem)] text-bone outline-none">
+            Referencias
+          </h2>
+          <p className="mt-3 max-w-xl text-sm text-mute">
+            Tocá <span className="text-bone">+</span> en las fotos que te gusten para sumarlas a tu moodboard: mínimo 3, máximo{' '}
+            {MAX_SELECTION}. Tocá la foto para verla en grande.
+          </p>
+        </div>
         <p className="label text-dim" role="status" aria-live="polite">
           {status}
         </p>
@@ -196,7 +246,7 @@ export function Results({ results }: { results: TagResult[] }) {
                 <GroupStatus group={group} />
               </p>
             </header>
-            <GroupBody group={group} onOpen={(p) => setOpenId(p.id)} />
+            <GroupBody group={group} onOpen={(p) => setOpenId(p.id)} isSelected={isSelected} onToggle={toggle} />
           </section>
         ))}
       </div>
@@ -210,6 +260,8 @@ export function Results({ results }: { results: TagResult[] }) {
             onClose={() => setOpenId(null)}
             onNavigate={(i) => setOpenId(photos[(i + photos.length) % photos.length].id)}
             tagOf={(p) => tagOf.get(p.id)}
+            isSelected={isSelected}
+            onToggleSelect={(p) => toggle(p, tagOf.get(p.id) ?? groups[0]?.tag ?? '')}
           />
         )}
       </AnimatePresence>

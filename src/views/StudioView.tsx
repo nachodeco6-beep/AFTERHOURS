@@ -1,8 +1,12 @@
+import { AnimatePresence } from 'framer-motion'
 import { ArrowUpRight, Info } from 'lucide-react'
+import { useState } from 'react'
 import { Reveal } from '../components/Reveal'
 import { SectionHeader } from '../components/SectionHeader'
+import { IncludeDialog } from '../components/moodboard/IncludeDialog'
 import { IdeaEditor } from '../components/studio/IdeaEditor'
 import { Results } from '../components/studio/Results'
+import { SelectionTray } from '../components/studio/SelectionTray'
 import { useStudio } from '../hooks/useStudio'
 import { SEARCH_API_URL, SEARCH_URL_INVALID } from '../lib/searchApi'
 import { UNSPLASH_URL } from '../lib/unsplash'
@@ -25,8 +29,11 @@ function DemoNotice() {
 }
 
 export function StudioView() {
-  const { results } = useStudio()
+  const { results, selection, board, buildBoard } = useStudio()
   const demo = SEARCH_API_URL === null
+  const [choosing, setChoosing] = useState(false)
+
+  const showBoard = () => document.getElementById('moodboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
     <section aria-labelledby="studio-title" className="relative pt-28 pb-20 md:pt-36 md:pb-28">
@@ -59,6 +66,21 @@ export function StudioView() {
           <p className="label-sm text-dim">Cada foto lleva el crédito de su autor</p>
         </div>
       </div>
+
+      <SelectionTray onBuild={() => setChoosing(true)} onShowBoard={showBoard} />
+      <AnimatePresence>
+        {choosing && (
+          <IncludeDialog
+            count={selection.length}
+            initial={board?.include}
+            onClose={() => setChoosing(false)}
+            onBuild={(include) => {
+              setChoosing(false)
+              buildBoard(include)
+            }}
+          />
+        )}
+      </AnimatePresence>
     </section>
   )
 }

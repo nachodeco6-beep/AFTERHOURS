@@ -11,8 +11,8 @@ interface PhotoFrameProps {
   fit?: 'cover' | 'contain'
   /** `sizes` attribute for the responsive image. */
   sizes?: string
-  /** Grid thumbnails pick between small and regular; the viewer always uses regular. */
-  size?: 'grid' | 'large'
+  /** thumb = tiny previews; grid picks between small and regular; large always uses regular. */
+  size?: 'thumb' | 'grid' | 'large'
 }
 
 /**
@@ -31,7 +31,7 @@ export function PhotoFrame({ photo, className = 'relative', eager = false, fit =
     <div className={`overflow-hidden ${className}`} style={{ backgroundColor: loaded ? undefined : (photo.color ?? undefined) } as CSSProperties}>
       {!loaded && !failed && (
         <div aria-hidden="true" className="absolute inset-0 flex items-end bg-ink/55 p-3">
-          <span className="label-sm text-bone/70">Revelando…</span>
+          {size !== 'thumb' && <span className="label-sm text-bone/70">Revelando…</span>}
           <span className="absolute inset-0 animate-pulse bg-gradient-to-br from-transparent via-white/[0.04] to-transparent" />
         </div>
       )}
@@ -42,7 +42,7 @@ export function PhotoFrame({ photo, className = 'relative', eager = false, fit =
         </div>
       ) : (
         <img
-          src={size === 'grid' ? photo.urls.small : photo.urls.regular}
+          src={size === 'thumb' ? photo.urls.thumb : size === 'grid' ? photo.urls.small : photo.urls.regular}
           srcSet={srcSet}
           sizes={srcSet ? sizes : undefined}
           alt={photo.alt}

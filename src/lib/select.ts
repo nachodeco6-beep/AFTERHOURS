@@ -22,6 +22,9 @@ export interface Entry {
 export type Orientation = 'landscape' | 'portrait' | 'square'
 
 export const COMPLETE_TARGET = 9
+/** A board needs at least 3 photos and holds up to 12. */
+export const MIN_SELECTION = 3
+export const MAX_SELECTION = 12
 export const MAX_AUTHOR_REPEATS = 2
 
 export function orientationOf(p: Pick<Photo, 'width' | 'height'>): Orientation {
