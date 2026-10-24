@@ -3,9 +3,25 @@ import type { SearchResponse } from '../../shared/types'
 import { StudioContext, type Board, type Include, type Picked, type StudioApi, type TagResult, type ToggleResult } from '../hooks/useStudio'
 import { DEFAULT_FORMAT } from '../lib/formats'
 import { poolOf } from '../lib/pool'
+import {
+  browserStorage,
+  contentOf,
+  duplicateBoard,
+  makeRecord,
+  newId,
+  readBoards,
+  removeBoard,
+  renameBoard,
+  signature,
+  upsert,
+  writeBoards,
+  type BoardContent,
+  type SavedBoard,
+} from '../lib/saved'
 import { SearchFailure, searchPhotos } from '../lib/searchApi'
 import { completeSelection, MAX_SELECTION, type Entry } from '../lib/select'
 import { parseTags, tagKey } from '../lib/tags'
+import { DEFAULT_TYPE_STYLE } from '../lib/typography'
 
 const capitalize = (s: string) => s.charAt(0).toLocaleUpperCase('es') + s.slice(1)
 
@@ -130,14 +146,116 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         include,
         pairOffset: prev?.pairOffset ?? 0,
         notes: prev?.notes ?? null,
+        fonts: prev?.fonts ?? null,
+        typeStyle: prev?.typeStyle ?? DEFAULT_TYPE_STYLE,
+        savedId: prev?.savedId ?? null,
         buildId: (prev?.buildId ?? 0) + 1,
       }))
     },
     [idea, tags],
   )
 
-  const updateBoard = useCallback((patch: Partial<Omit<Board, 'buildId'>>) => setBoard((b) => (b ? { ...b, ...patch } : b)), [])
+  const updateBoard = useCallback((patch: Partial<Omit<Board, 'buildId' | 'savedId'>>) => setBoard((b) => (b ? { ...b, ...patch } : b)), [])
   const dismantleBoard = useCallback(() => setBoard(null), [])
+
+  // ─── Saved boards ─────────────────────────────────────────────────────────
+
+  const ideaTags = useMemo(() => parseTags(idea).searchable, [idea])
+  const concept = ideaTags.length ? ideaTags : tags
+  const [storage] = useState(browserStorage)
+  const [saved, setSaved] = useState<SavedBoard[]>(() => readBoards(storage))
+  // signature of the board as last saved or opened: anything else is an unsaved change
+  const [savedSignature, setSavedSignature] = useState<string | null>(null)
+
+  const content = useMemo<BoardContent | null>(
+    () =>
+      board && {
+        title: board.title,
+        template: board.template,
+        format: board.format,
+        include: board.include,
+        notes: board.notes,
+        pairOffset: board.pairOffset,
+        fonts: board.fonts,
+        typeStyle: board.typeStyle,
+        concept,
+        photos: selection.map((s) => ({ photo: s.photo, tag: s.tag })),
+      },
+    [board, concept, selection],
+  )
+  const dirty = content !== null && (board?.savedId == null || signature(content) !== savedSignature)
+
+  const commit = useCallback(
+    (next: SavedBoard[]) => {
+      const res = writeBoards(storage, next)
+      if (res === 'ok') setSaved(next)
+      return res
+    },
+    [storage],
+  )
+
+  const saveBoard = useCallback(() => {
+    if (!board || !content) return 'unavailable'
+    const id = board.savedId ?? newId()
+    const res = commit(upsert(saved, makeRecord(content, id, Date.now())))
+    if (res === 'ok') {
+      setBoard((b) => (b ? { ...b, savedId: id } : b))
+      setSavedSignature(signature(content))
+    }
+    return res
+  }, [board, content, saved, commit])
+
+  const openSaved = useCallback(
+    (id: string) => {
+      const r = saved.find((s) => s.id === id)
+      if (!r) return
+      setSelection(r.photos.map((p) => ({ photo: p.photo, tag: p.tag, auto: false })))
+      setIdea(r.concept.join(', '))
+      setBoard((prev) => ({
+        title: r.title,
+        template: r.template,
+        format: r.format,
+        include: r.include,
+        pairOffset: r.pairOffset,
+        notes: r.notes,
+        fonts: r.fonts,
+        typeStyle: r.typeStyle,
+        savedId: r.id,
+        buildId: (prev?.buildId ?? 0) + 1,
+      }))
+      setSavedSignature(signature(contentOf(r)))
+    },
+    [saved],
+  )
+
+  const duplicateSaved = useCallback((id: string) => commit(duplicateBoard(saved, id, newId(), Date.now())), [saved, commit])
+
+  const renameSaved = useCallback(
+    (id: string, title: string) => {
+      const next = renameBoard(saved, id, title)
+      const res = commit(next)
+      const renamed = next.find((r) => r.id === id)
+      // the open board follows its saved name (other unsaved changes stay unsaved)
+      if (res === 'ok' && renamed && board?.savedId === id) {
+        setBoard((b) => (b ? { ...b, title: renamed.title } : b))
+        setSavedSignature(signature(contentOf(renamed)))
+      }
+      return res
+    },
+    [saved, commit, board?.savedId],
+  )
+
+  const removeSaved = useCallback(
+    (id: string) => {
+      const res = commit(removeBoard(saved, id))
+      if (res === 'ok' && board?.savedId === id) {
+        setBoard((b) => (b ? { ...b, savedId: null } : b))
+        setSavedSignature(null)
+      }
+      return res
+    },
+    [saved, commit, board?.savedId],
+  )
 
   const searching = results?.some((r) => r.status === 'loading') ?? false
 
@@ -163,8 +281,46 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       buildBoard,
       updateBoard,
       dismantleBoard,
+      concept,
+      saved,
+      canSave: storage !== null,
+      dirty,
+      saveBoard,
+      openSaved,
+      duplicateSaved,
+      renameSaved,
+      removeSaved,
     }),
-    [idea, results, searching, search, requestsFor, tags, pool, selection, isSelected, toggleSelect, removeSelected, moveSelected, reorderSelection, replaceSelected, complete, board, buildBoard, updateBoard, dismantleBoard],
+    [
+      idea,
+      results,
+      searching,
+      search,
+      requestsFor,
+      tags,
+      pool,
+      selection,
+      isSelected,
+      toggleSelect,
+      removeSelected,
+      moveSelected,
+      reorderSelection,
+      replaceSelected,
+      complete,
+      board,
+      buildBoard,
+      updateBoard,
+      dismantleBoard,
+      concept,
+      saved,
+      storage,
+      dirty,
+      saveBoard,
+      openSaved,
+      duplicateSaved,
+      renameSaved,
+      removeSaved,
+    ],
   )
 
   return <StudioContext.Provider value={api}>{children}</StudioContext.Provider>
