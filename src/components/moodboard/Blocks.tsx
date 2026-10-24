@@ -5,12 +5,10 @@ import { hexToRgb, luminance } from '../../lib/color'
 import type { PaletteResult } from '../../lib/paletteImage'
 import { fontCss, specimenUrl } from '../../lib/typography'
 
-/** Every block fills its grid cell on desktop and takes its natural height on mobile. */
-const BLOCK = 'relative flex h-full min-h-0 w-full flex-col overflow-hidden [container-type:size] max-md:[container-type:inline-size]'
+/** Every block fills its cell of the canvas (fixed size, the same on every screen). */
+const BLOCK = 'relative flex h-full min-h-0 w-full flex-col overflow-hidden [container-type:size]'
 
-const BlockLabel = ({ children, dark = false }: { children: ReactNode; dark?: boolean }) => (
-  <p className={`label-sm ${dark ? 'text-ink/70' : 'text-dim'}`}>{children}</p>
-)
+const BlockLabel = ({ children }: { children: ReactNode }) => <p className="label-sm text-dim">{children}</p>
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 
@@ -43,7 +41,8 @@ function Swatch({ hex, onCopied }: { hex: string; onCopied: (hex: string | null)
     >
       <span className="label-sm flex items-center gap-1 tabular-nums">
         {copied ? <Check className="size-3" strokeWidth={2.5} aria-hidden="true" /> : <Copy className="size-3 opacity-0 transition-opacity group-hover/sw:opacity-70 group-focus-visible/sw:opacity-70" strokeWidth={2} aria-hidden="true" />}
-        {copied ? 'Copiado' : hex}
+        {/* a small palette keeps the colours and drops the codes (still in the button's label) */}
+        <span className="[@container(max-width:340px)]:hidden">{copied ? 'Copiado' : hex}</span>
       </span>
     </button>
   )
@@ -62,7 +61,7 @@ export function PaletteBlock({ palette, loading, vertical }: { palette: PaletteR
           <span aria-hidden="true" className="size-2 animate-pulse bg-acid" /> Leyendo colores…
         </p>
       ) : (
-        <div className={`flex min-h-0 flex-1 ${vertical ? 'flex-col' : 'flex-row max-md:flex-col md:flex-row'}`} role="group" aria-label="Colores de la paleta">
+        <div className={`flex min-h-0 flex-1 ${vertical ? 'flex-col' : 'flex-row'}`} role="group" aria-label="Colores de la paleta">
           {palette.colors.map((hex) => (
             <Swatch key={hex} hex={hex} onCopied={(h) => setAnnounce(h ? `Copiado ${h}` : 'No se pudo copiar el color')} />
           ))}
@@ -86,11 +85,12 @@ export function TypeBlock({ pair, fontsReady }: { pair: TypePair; fontsReady: bo
         <BlockLabel>Tipografía</BlockLabel>
         <p className="label-sm text-dim">{pair.category}</p>
       </div>
-      <p className="text-[clamp(2.5rem,32cqmin,9rem)] leading-[0.95] text-bone max-md:text-[clamp(3rem,30cqi,7rem)]" style={display} aria-hidden="true">
+      <p className="text-[clamp(2.5rem,32cqmin,9rem)] leading-[0.95] text-bone" style={display} aria-hidden="true">
         Aa
       </p>
       <div className="space-y-3">
-        <p className="text-[clamp(0.8rem,5.5cqi,1.05rem)] leading-snug text-mute" style={text}>
+        {/* in a low cell the sample paragraph gives way to the font names */}
+        <p className="text-[clamp(0.8rem,5.5cqi,1.05rem)] leading-snug text-mute [@container(max-height:250px)]:hidden" style={text}>
           Las fotos marcan el clima; la tipografía pone la voz. Este párrafo usa la fuente de texto del par.
         </p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line pt-3">
@@ -120,13 +120,17 @@ export function TypeBlock({ pair, fontsReady }: { pair: TypePair; fontsReady: bo
 
 export function KeywordsBlock({ tags }: { tags: string[] }) {
   return (
-    <div className={`${BLOCK} justify-between gap-3 bg-acid p-4 text-ink`}>
-      <BlockLabel dark>Palabras clave</BlockLabel>
-      <ul className="display flex flex-wrap gap-x-[0.35em] gap-y-[0.12em] text-[clamp(1.4rem,12cqmin,3.5rem)] leading-[1.05] max-md:text-[clamp(1.6rem,9cqi,3rem)]">
+    <div className={`${BLOCK} justify-between gap-3 border border-line bg-char p-4`}>
+      {/* the acid stays a small detail: it's the interface's colour, it shouldn't compete with the photos */}
+      <div className="flex items-center gap-2">
+        <span aria-hidden="true" className="h-px w-6 bg-acid" />
+        <p className="label-sm text-acid">Palabras clave</p>
+      </div>
+      <ul className="display flex flex-wrap gap-x-[0.35em] gap-y-[0.12em] text-[clamp(1.4rem,12cqmin,3.5rem)] leading-[1.05] text-bone">
         {tags.map((t, i) => (
           <li key={t}>
             {t}
-            {i < tags.length - 1 && <span className="text-ink/40"> /</span>}
+            {i < tags.length - 1 && <span className="text-dim"> /</span>}
           </li>
         ))}
       </ul>
@@ -147,7 +151,7 @@ export function NotesBlock({ value, onChange }: { value: string; onChange: (v: s
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
-        className="thin-scroll min-h-0 w-full flex-1 resize-none bg-transparent font-serif text-[clamp(0.95rem,6cqi,1.2rem)] leading-snug text-bone outline-none focus-visible:shadow-[inset_2px_0_0_var(--color-acid)] max-md:min-h-36"
+        className="thin-scroll min-h-0 w-full flex-1 resize-none bg-transparent font-serif text-[clamp(0.95rem,6cqi,1.2rem)] leading-snug text-bone outline-none focus-visible:shadow-[inset_2px_0_0_var(--color-acid)]"
       />
     </div>
   )
