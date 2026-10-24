@@ -69,7 +69,7 @@ export function Intro({ onDone }: { onDone: () => void }) {
               transition={{ duration: 1.6, ease: [0.65, 0, 0.35, 1] }}
             />
             <div className="mt-3 flex justify-between text-mute">
-              <span className="label">Idea · Etiquetas · Referencias</span>
+              <span className="label">Idea · Referencias · Moodboard</span>
               <span className="label">From vision to visual</span>
             </div>
           </div>

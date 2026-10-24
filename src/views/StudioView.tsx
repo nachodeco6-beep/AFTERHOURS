@@ -42,8 +42,8 @@ export function StudioView() {
         {demo && <DemoNotice />}
 
         <SectionHeader id="studio" no="01" label="Concepto" meta="Fotos de Unsplash" title="Studio" routeTitle>
-          Escribí tu idea separando los conceptos con comas. Cada etiqueta se convierte en una búsqueda de fotografías
-          reales en Unsplash.
+          Escribí tu idea separando los conceptos con comas: cada etiqueta busca fotografías reales en Unsplash. Elegí
+          las que te gusten y AFTERHOURS arma el moodboard.
         </SectionHeader>
 
         <Reveal>
