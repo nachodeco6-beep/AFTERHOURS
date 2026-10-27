@@ -77,6 +77,8 @@ export interface PlantaController {
 }
 
 const AZ = -Math.PI / 4
+/** Up to this stage width (px) it's a phone: the model starts closer and the signs shrink to their number (planta.css). */
+const NARROW = 640
 
 export async function createPlanta(o: PlantaOptions): Promise<PlantaController> {
   const { stage, reduced, quality, signal } = o
@@ -161,6 +163,7 @@ export async function createPlanta(o: PlantaOptions): Promise<PlantaController> 
   controls.maxPolarAngle = 1.2
   controls.minAzimuthAngle = AZ - 0.65
   controls.maxAzimuthAngle = AZ + 0.65
+  /** The whole-plan view: the intro ends here and «Toda la planta» flies back here. The zoom depends on the stage width (resize). */
   const HOME = { target: new THREE.Vector3(0.2, 0.3, 0), zoom: 1 }
   const setCamDir = (polar = 0.98, az = AZ, dist = 30) => {
     camera.position.set(HOME.target.x + dist * Math.sin(polar) * Math.sin(az), HOME.target.y + dist * Math.cos(polar), HOME.target.z + dist * Math.sin(polar) * Math.cos(az))
@@ -184,6 +187,14 @@ export async function createPlanta(o: PlantaOptions): Promise<PlantaController> 
     m.castShadow = !(m.userData.noShadow || basic)
     m.receiveShadow = !basic
   })
+
+  // how far the floors reach to each side of the home view, in world units: on a phone the plan spans the width
+  root.updateMatrixWorld(true)
+  const floorBox = new THREE.Box3()
+  for (const r of ROOMS) floorBox.expandByObject(rooms[r.id].floor)
+  let reach = 0
+  for (const x of [floorBox.min.x, floorBox.max.x])
+    for (const z of [floorBox.min.z, floorBox.max.z]) reach = Math.max(reach, Math.abs((x - HOME.target.x) * Math.cos(AZ) - (z - HOME.target.z) * Math.sin(AZ)))
 
   // ---------- post-processing (the model-photo look) ----------
   const rt = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: quality === 'high' ? 4 : quality === 'low' ? 2 : 0 })
@@ -209,6 +220,10 @@ export async function createPlanta(o: PlantaOptions): Promise<PlantaController> 
       asp = w / h
     const halfH = Math.max(4.5, 7.0 / asp)
     Object.assign(camera, { left: -halfH * asp, right: halfH * asp, top: halfH, bottom: -halfH })
+    const home = w <= NARROW ? Math.max(1, (halfH * asp) / reach) : 1
+    // still on the whole plan (say, the phone turned): follow the new home zoom
+    if (camera.zoom === HOME.zoom && !focused && !tween) camera.zoom = home
+    HOME.zoom = home
     camera.updateProjectionMatrix()
     renderer.setSize(w, h, false)
     composer.setSize(w, h)
@@ -304,7 +319,16 @@ export async function createPlanta(o: PlantaOptions): Promise<PlantaController> 
   controls.update()
   paintFloors()
   let introOn = !reduced
-  const rig = { camera, target: HOME.target, az: AZ, lights: C.lights, MAT }
+  const rig = {
+    camera,
+    target: HOME.target,
+    get zoom() {
+      return HOME.zoom
+    },
+    az: AZ,
+    lights: C.lights,
+    MAT,
+  }
   if (introOn) {
     controls.enabled = false
     introStep(rig, 0)
@@ -373,7 +397,7 @@ export async function createPlanta(o: PlantaOptions): Promise<PlantaController> 
     unfocus() {
       if (!focused) return
       focused = null
-      flyTo(HOME.target, 1, null)
+      flyTo(HOME.target, HOME.zoom, null)
     },
     dispose() {
       if (disposed) return

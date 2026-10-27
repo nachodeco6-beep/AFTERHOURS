@@ -7,6 +7,8 @@ export const INTRO_DURATION = 3.4
 export interface IntroRig {
   camera: THREE.OrthographicCamera
   target: THREE.Vector3
+  /** Home zoom (closer on a phone). */
+  zoom: number
   /** Home azimuth of the camera. */
   az: number
   lights: THREE.PointLight[]
@@ -15,7 +17,7 @@ export interface IntroRig {
 
 /** Advances the intro to time t (seconds); returns false once it's over (everything at full power). */
 export function introStep(rig: IntroRig, t: number): boolean {
-  const { camera, target, az: AZ, lights, MAT } = rig
+  const { camera, target, zoom, az: AZ, lights, MAT } = rig
   const k = Math.min(1, t / INTRO_DURATION)
   // lights switch on one by one, with a tube's flicker
   lights.forEach((L, i) => {
@@ -33,7 +35,7 @@ export function introStep(rig: IntroRig, t: number): boolean {
   const az = AZ - 0.55 * (1 - e),
     polar = 0.98 - 0.25 * (1 - e)
   camera.position.set(target.x + 30 * Math.sin(polar) * Math.sin(az), target.y + 30 * Math.cos(polar), target.z + 30 * Math.sin(polar) * Math.cos(az))
-  camera.zoom = 0.62 + 0.38 * e
+  camera.zoom = (0.62 + 0.38 * e) * zoom
   camera.updateProjectionMatrix()
   camera.lookAt(target)
   if (k >= 1) {
