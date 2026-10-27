@@ -6,8 +6,25 @@ import { timeZoneLabel, useClock } from '../hooks/useClock'
 import { useDialog } from '../hooks/useDialog'
 import { formatClock } from '../lib/format'
 import { routeHref, scrollToTop, type RouteId } from '../lib/router'
+import { PlanIcon } from './PlanIcon'
 
-export function Header({ route }: { route: RouteId }) {
+/** «Página | Planta»: the usual page, or the 3D plan over it. */
+function ViewSwitch({ plantaOpen, onPlanta }: { plantaOpen: boolean; onPlanta: () => void }) {
+  const base = 'label-sm flex h-8 items-center gap-1.5 px-2 transition-colors sm:px-2.5'
+  return (
+    <div role="group" aria-label="Cómo ver AFTERHOURS" className="flex border border-line">
+      <button type="button" aria-pressed={!plantaOpen} className={`${base} ${plantaOpen ? 'text-mute hover:text-bone' : 'bg-acid text-ink'}`}>
+        Página
+      </button>
+      <button type="button" aria-pressed={plantaOpen} onClick={onPlanta} className={`${base} ${plantaOpen ? 'bg-acid text-ink' : 'text-mute hover:text-bone'}`}>
+        <PlanIcon />
+        Planta
+      </button>
+    </div>
+  )
+}
+
+export function Header({ route, plantaOpen = false, onPlanta = () => {} }: { route: RouteId; plantaOpen?: boolean; onPlanta?: () => void }) {
   const now = useClock()
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -52,7 +69,8 @@ export function Header({ route }: { route: RouteId }) {
             </ul>
           </nav>
 
-          <div className="flex items-center gap-3 sm:gap-5">
+          <div className="flex items-center gap-2 sm:gap-5">
+            <ViewSwitch plantaOpen={plantaOpen} onPlanta={onPlanta} />
             <time className="label hidden tabular-nums text-mute sm:block" dateTime={now.toISOString()} aria-label="Tu hora local">
               {formatClock(now)}
             </time>
