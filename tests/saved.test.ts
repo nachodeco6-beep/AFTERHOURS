@@ -27,6 +27,7 @@ const content = (over: Partial<BoardContent> = {}): BoardContent => ({
   pairOffset: 2,
   fonts: { display: 6, text: 1 },
   typeStyle: { weight: 700, leading: 1.6, tracking: 0.05, uppercase: true },
+  palette: null,
   concept: ['lujo', 'surf'],
   photos: [
     { photo: photo('a', L), tag: 'lujo' },
@@ -66,7 +67,7 @@ test('the signature changes with any edit, not with the save time', () => {
 test('older records are migrated: missing fields get their defaults', () => {
   const old = { id: 'old', title: 'Antiguo', template: 'grilla', photos: [{ photo: photo('a'), tag: 'mar' }], pairOffset: 1 }
   const r = readRecord(old)!
-  assert.equal(r.version, 1)
+  assert.equal(r.version, 2)
   assert.equal(r.format, 'horizontal')
   assert.deepEqual(r.include, { palette: true, type: true, keywords: true, notes: false })
   assert.equal(r.fonts, null)
