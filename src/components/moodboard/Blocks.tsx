@@ -82,9 +82,9 @@ export function TypeBlock({ pair, fontsReady, style, onOpenLab }: { pair: TypePa
   return (
     <div className={`${BLOCK} justify-between gap-3 border border-line p-4`}>
       <div className="flex items-baseline justify-between gap-2">
-        <BlockLabel>Tipografía · {pair.category}</BlockLabel>
+        <p className="label-sm min-w-0 truncate text-dim">Tipografía · {pair.category}</p>
         {onOpenLab && (
-          <button type="button" onClick={onOpenLab} data-ui className="label-sm inline-flex items-center gap-1 text-mute hover:text-acid">
+          <button type="button" onClick={onOpenLab} data-ui className="label-sm inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-mute hover:text-acid">
             Type Lab <ArrowUpRight className="size-3" aria-hidden="true" />
           </button>
         )}

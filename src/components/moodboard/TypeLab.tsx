@@ -5,6 +5,8 @@ import { TYPE_PAIRS, type FontSpec, type TypePair } from '../../data/typePairs'
 import { useDialog } from '../../hooks/useDialog'
 import type { Board } from '../../hooks/useStudio'
 import { queueFont } from '../../lib/fonts'
+import { useSurface } from '../../hooks/useSurface'
+import { SurfacePicker, WorkSurface } from '../WorkSurface'
 import {
   DEFAULT_TYPE_STYLE,
   effectivePair,
@@ -83,6 +85,7 @@ export function TypeLab({ board, auto, pair, fontsReady, tags, notes, onChange, 
   useDialog(ref, true, onClose)
   const [mode, setMode] = useState<Mode>('pair')
   const [category, setCategory] = useState<string | null>(null)
+  const [surface, setSurface] = useSurface()
 
   const style = board.typeStyle
   const current: PickedFonts = board.fonts ?? { display: auto.id, text: auto.id }
@@ -163,36 +166,39 @@ export function TypeLab({ board, auto, pair, fontsReady, tags, notes, onChange, 
       </div>
 
       <div className="thin-scroll min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:overflow-hidden">
-        {/* preview, with the board's own words */}
-        <section aria-label="Vista previa" className="thin-scroll border-line p-4 sm:p-6 lg:overflow-y-auto lg:border-r lg:p-10">
-          <div className="border border-line bg-[#0c0c0b] p-5 sm:p-8">
-            <p className="label-sm text-dim">
+        {/* preview, with the board's own words, on the work table */}
+        <div className="flex min-h-0 flex-col border-line lg:border-r">
+          <WorkSurface surface={surface} label="Vista previa" className="thin-scroll relative flex-1 p-4 sm:p-6 lg:overflow-y-auto lg:p-10">
+            <div className="mb-6 flex justify-end">
+              <SurfacePicker value={surface} onChange={setSurface} />
+            </div>
+            <p className="label-sm text-[var(--sheet-mute)]">
               Titular · {pair.display.family}
               {pair.display.style?.fontStyle === 'italic' && ' Itálica'} · {pair.display.weight ?? 400}
             </p>
-            <p className="mt-3 text-[clamp(2.25rem,6vw,5rem)] leading-[0.95] break-words text-bone" style={title}>
+            <p className="mt-3 text-[clamp(2.25rem,6vw,5rem)] leading-[0.95] break-words" style={title}>
               {board.title || 'Título'}
             </p>
             {tags.length > 0 && (
-              <p className="mt-4 text-[clamp(1.1rem,2.4vw,1.75rem)] leading-tight text-mute" style={display}>
+              <p className="mt-4 text-[clamp(1.1rem,2.4vw,1.75rem)] leading-tight text-[var(--sheet-mute)]" style={display}>
                 {tags.join(' / ')}
               </p>
             )}
-            <p className="label-sm mt-8 text-dim">Texto · {pair.text.family}</p>
-            <p className="mt-3 max-w-prose text-base text-bone/85" style={text}>
+            <p className="label-sm mt-8 text-[var(--sheet-mute)]">Texto · {pair.text.family}</p>
+            <p className="mt-3 max-w-prose text-base" style={text}>
               {excerpt(notes)}
             </p>
-            <div className="mt-8 border-t border-line pt-4">
-              <p className="label-sm text-dim">En tamaño chico</p>
-              <p className="mt-2 text-sm text-bone" style={title}>
+            <div className="mt-8 max-w-prose border-t border-[var(--sheet-line)] pt-4">
+              <p className="label-sm text-[var(--sheet-mute)]">En tamaño chico</p>
+              <p className="mt-2 text-sm" style={title}>
                 {board.title || 'Título'}
               </p>
-              <p className="mt-1 text-xs text-mute" style={text}>
+              <p className="mt-1 text-xs text-[var(--sheet-mute)]" style={text}>
                 {excerpt(notes, 140)}
               </p>
             </div>
-          </div>
-          <div aria-live="polite" className="mt-4 space-y-2">
+          </WorkSurface>
+          <div aria-live="polite" className="space-y-2 border-t border-line p-4 empty:hidden sm:px-6 lg:px-10">
             {fontsReady === false && <p className="label-sm text-alarm">No se pudieron cargar las fuentes: ves una aproximación.</p>}
             {notesList.map((n) => (
               <p key={n} className="flex gap-2 text-sm leading-snug text-mute">
@@ -201,7 +207,7 @@ export function TypeLab({ board, auto, pair, fontsReady, tags, notes, onChange, 
               </p>
             ))}
           </div>
-        </section>
+        </div>
 
         {/* controls */}
         <div className="thin-scroll border-t border-line p-4 sm:p-6 lg:overflow-y-auto lg:border-t-0 lg:p-10">
