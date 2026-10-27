@@ -17,7 +17,7 @@ import { DEFAULT_TYPE_STYLE, effectivePair } from '../../lib/typography'
 import { PaletteWorkbench, toolButton } from '../moodboard/PaletteWorkbench'
 import { PhotoCredit } from '../studio/PhotoCredit'
 import { PhotoFrame } from '../studio/PhotoFrame'
-import { isTypingTarget, tabPanelProps } from './labKeys'
+import { isTypingTarget, swatchStyle, tabPanelProps } from './labKeys'
 import { ChipGroup, Tabs } from './LabUi'
 
 type Panel = 'generar' | 'inspiracion' | 'imagen' | 'foto' | 'guardados'
@@ -369,7 +369,7 @@ function Strip({ hexes, className = 'h-10' }: { hexes: string[]; className?: str
   return (
     <span aria-hidden="true" className={`flex w-full overflow-hidden ${className}`}>
       {hexes.map((h, i) => (
-        <span key={i} className="flex-1" style={{ backgroundColor: h }} />
+        <span key={i} className="flex-1" style={swatchStyle(h)} />
       ))}
     </span>
   )

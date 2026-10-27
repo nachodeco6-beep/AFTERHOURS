@@ -11,6 +11,7 @@ import {
   formatRatio,
   fromAuto,
   MIN_DISTANCE,
+  needsEdge,
   recalc,
   regenerate,
   roleIndex,
@@ -240,4 +241,10 @@ test('saved boards: old ones migrate to the automatic palette; edited palettes s
   assert.equal(readRecord({ ...record, palette: { colors: edit.colors.slice(0, 2), basis: 'x' } })!.palette, null, 'fewer than 3')
   const dupRoles = { ...edit, colors: edit.colors.map((x) => ({ ...x, role: 'fondo' })) }
   assert.equal(readRecord({ ...record, palette: dupRoles })!.palette!.colors.filter((x) => x.role === 'fondo').length, 1, 'a role only once')
+})
+
+test('a swatch that melts into the dark page gets an edge; one that stands out doesn’t', () => {
+  for (const hex of ['#090909', '#0B0D12', '#121417', '#1A0F14', '#2A2A28']) assert.equal(needsEdge(hex), true, hex)
+  for (const hex of ['#F1F0E8', '#C7FF3D', '#8F8E87', '#1F3A63', '#FF5A3C']) assert.equal(needsEdge(hex), false, hex)
+  assert.equal(needsEdge('#FAFAF7', '#FAFAF7'), true, 'against another background too')
 })

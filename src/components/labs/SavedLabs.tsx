@@ -6,6 +6,7 @@ import { pairById, pairName } from '../../lib/pairing'
 import { routeHref } from '../../lib/router'
 import { effectivePair } from '../../lib/typography'
 import { FontSample } from '../moodboard/FontSample'
+import { swatchStyle } from './labKeys'
 
 const goTo = (route: 'type-lab' | 'color-lab') => {
   location.hash = routeHref(route)
@@ -98,7 +99,7 @@ export function SavedLabs() {
               <li key={p.id} className="flex flex-col border border-line">
                 <span aria-hidden="true" className="flex h-24">
                   {p.colors.map((c, i) => (
-                    <span key={i} className="flex-1" style={{ backgroundColor: c.hex }} />
+                    <span key={i} className="flex-1" style={swatchStyle(c.hex)} />
                   ))}
                 </span>
                 <div className="border-t border-line p-3">
