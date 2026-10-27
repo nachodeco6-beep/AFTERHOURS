@@ -416,11 +416,24 @@
   inset: 0;
   z-index: 3;
   overflow: auto;
-  padding: 24px max(16px, env(safe-area-inset-left, 0px));
+  container-type: size;
+  /* clears the eyebrow */
+  padding: 40px max(16px, env(safe-area-inset-left, 0px)) 16px;
+}
+.planta .plain-note {
+  margin: 0;
+  font-family: var(--pl-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pl-mute);
 }
 .planta .plan-simple .board {
   position: relative;
-  width: min(100%, 900px);
+  /* fits the width and the height left under the note */
+  width: min(100%, 900px, calc((100cqh - 48px) * 1000 / 680));
+  min-width: min(100%, 300px);
   aspect-ratio: 1000 / 680;
   margin: 16px auto 0;
   border: 2px solid var(--pl-acid);

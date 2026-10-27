@@ -213,7 +213,7 @@ export default function StudioPlanta3D({ state, dispatch, initialRoom }: Props) 
 
         {plain && (
           <section className="plan-simple" aria-label="Plano de AFTERHOURS">
-            <p className="status" style={{ position: 'static', padding: 0, justifyContent: 'flex-start', textAlign: 'left' }}>
+            <p className="plain-note">
               {status === 'nowebgl' ? 'Este navegador no puede mostrar la maqueta 3D: acá está el plano.' : 'No se pudo armar la maqueta 3D: acá está el plano.'}
             </p>
             <ul className="board">
