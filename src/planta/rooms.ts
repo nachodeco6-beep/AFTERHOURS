@@ -20,7 +20,7 @@ export interface Room {
 
 /** In the prototype's order (it decides how signs stack). */
 export const ROOMS: Room[] = [
-  { id: 'archivo', rect: [0, 0, 300, 380], no: '04', name: 'Archivo', desc: 'Tus tableros guardados', who: 'Adentro: Don Ernesto, el archivista', tagY: 2.45 },
+  { id: 'library', rect: [0, 0, 300, 380], no: '04', name: 'Library', desc: 'Tableros, pares y paletas guardados', who: 'Adentro: Don Ernesto, el bibliotecario', tagY: 2.45 },
   { id: 'hall', rect: [0, 380, 300, 300], no: '00', name: 'Hall', desc: 'La portada', who: 'Adentro: Lola, que te recibe', tagY: 2.2 },
   { id: 'studio', rect: [300, 0, 420, 680], no: '01', name: 'Studio', desc: 'Idea, referencias y moodboard', who: 'Adentro: Tomi y Pixel, el gato', tagY: 2.55 },
   { id: 'type', rect: [720, 0, 280, 230], no: '02', name: 'Type Lab', desc: 'Tipografías que conectan', who: 'Adentro: Vera, que dibuja letras', tagY: 2.5 },

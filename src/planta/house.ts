@@ -20,7 +20,7 @@ export interface RoomMeshes {
 
 export function floors(TX: Textures): Record<RoomId, RoomMeshes> {
   const { root, pickables } = ctx()
-  const def: Record<RoomId, THREE.Texture> = { archivo: TX.oakDark, hall: TX.tile, studio: TX.oak, type: TX.maple, color: TX.maple, taller: TX.concrete }
+  const def: Record<RoomId, THREE.Texture> = { library: TX.oakDark, hall: TX.tile, studio: TX.oak, type: TX.maple, color: TX.maple, taller: TX.concrete }
   const out = {} as Record<RoomId, RoomMeshes>
   for (const r of ROOMS) {
     const id = r.id

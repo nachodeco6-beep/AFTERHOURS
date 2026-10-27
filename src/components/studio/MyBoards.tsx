@@ -32,7 +32,7 @@ function Thumb({ board }: { board: SavedBoard }) {
 
 /**
  * «Mis tableros»: boards saved in this browser. `heading={false}` when the page
- * already has its own (the Archivo room); `onOpened` after opening one.
+ * already gives it a title (the Library, the labs); `onOpened` after opening one.
  */
 export function MyBoards({ heading = true, onOpened }: { heading?: boolean; onOpened?: () => void } = {}) {
   const { saved, canSave, board, dirty, openSaved, duplicateSaved, renameSaved, removeSaved } = useStudio()
@@ -72,14 +72,16 @@ export function MyBoards({ heading = true, onOpened }: { heading?: boolean; onOp
   const action = 'label-sm inline-flex h-9 items-center gap-1.5 px-2 text-mute transition-colors hover:text-bone'
 
   return (
-    <section aria-labelledby="saved-title" className={heading ? 'mt-20 md:mt-28' : ''}>
+    <section aria-labelledby={heading ? 'saved-title' : undefined} className={heading ? 'mt-20 md:mt-28' : ''}>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div className={heading ? '' : 'sr-only'}>
-          <p className="label text-acid">04 — Archivo</p>
-          <h2 id="saved-title" className="display mt-2 text-[clamp(2.25rem,5vw,4rem)] text-bone">
-            Mis tableros
-          </h2>
-        </div>
+        {heading && (
+          <div>
+            <p className="label text-acid">04 — Library</p>
+            <h2 id="saved-title" className="display mt-2 text-[clamp(2.25rem,5vw,4rem)] text-bone">
+              Mis tableros
+            </h2>
+          </div>
+        )}
         <p className="label-sm max-w-xs text-dim">{canSave ? 'Se guardan en este navegador: no viajan a otros dispositivos.' : 'Este navegador no deja guardar: estos tableros se ven pero no se pueden cambiar.'}</p>
       </div>
 

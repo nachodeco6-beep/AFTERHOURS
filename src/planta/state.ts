@@ -2,7 +2,7 @@
  * Opening and closing the 3D plan, and where each room leads. Tiny and pure:
  * it's all the app shell carries of the plan (the rest loads on demand).
  */
-export type RoomId = 'archivo' | 'hall' | 'studio' | 'type' | 'color' | 'taller'
+export type RoomId = 'library' | 'hall' | 'studio' | 'type' | 'color' | 'taller'
 
 /** Where each room leads in the app; null = under construction. */
 export const ROOM_ROUTE: Record<RoomId, string | null> = {
@@ -10,14 +10,17 @@ export const ROOM_ROUTE: Record<RoomId, string | null> = {
   studio: '#/studio',
   type: '#/type-lab',
   color: '#/color-lab',
-  archivo: '#/archivo',
+  library: '#/library',
   taller: null,
 }
+
+/** Routes that moved: the old one still leads to the same room. */
+const MOVED: Record<string, string> = { '#/archivo': '#/library' }
 
 /** The room of a route (to start the plan on the room you're in). */
 export function roomOfRoute(hash: string): RoomId {
   const trimmed = (hash || '#/').replace(/\/+$/, '')
-  const clean = trimmed === '' || trimmed === '#' ? '#/' : trimmed
+  const clean = MOVED[trimmed] ?? (trimmed === '' || trimmed === '#' ? '#/' : trimmed)
   const hit = (Object.entries(ROOM_ROUTE) as [RoomId, string | null][]).find(([, route]) => route && (route === clean || (route !== '#/' && clean.startsWith(route))))
   return hit ? hit[0] : clean === '#/' ? 'hall' : 'studio'
 }

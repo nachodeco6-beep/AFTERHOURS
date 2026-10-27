@@ -171,7 +171,7 @@ export function furniture(TX: Textures, MAT: Materials) {
   const { root, anims, lights, reduced } = ctx()
   const char = (who: Parameters<typeof makeChar>[2], parent: THREE.Object3D, x: number, z: number, ry = 0) => makeChar(TX, MAT, who, parent, x, z, ry)
 
-  // ===== ARCHIVO =====
+  // ===== LIBRARY =====
   bookshelf(2.72, 2.0, 0.36, X(150), Z(20), 0, 6)
   {
     // library ladder
@@ -214,7 +214,7 @@ export function furniture(TX: Textures, MAT: Materials) {
   }
   plant(MAT, 'monstera', X(262), Z(346), 1.1)
   lamp(MAT, 'floor', X(40), Z(110), 0, 0x3d6bff, 2.2)
-  // pictures on the x=300 wall (Archivo/Hall side)
+  // pictures on the x=300 wall (Library/Hall side)
   framed(TX.photo, 0.38, 0.48, X(300) - TI / 2 - 0.02, 0.62, Z(250), -Math.PI / 2)
   framed(TX.cover2, 0.32, 0.32, X(300) - TI / 2 - 0.02, 0.6, Z(310), -Math.PI / 2)
   framed(TX.fromVision, 0.4, 0.52, X(300) - TI / 2 - 0.02, 0.62, Z(430), -Math.PI / 2)
