@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Minimal hash router: `#/` is the home page, `#/studio` the Studio.
+ * Minimal hash router: `#/` is the home page, `#/studio` the Studio, plus the
+ * labs and the archive (`#/type-lab`, `#/color-lab`, `#/archivo`).
  * Hashes that don't start with `#/` are plain in-page anchors and leave the
  * current route alone; unknown routes fall back to home.
  */
-export type RouteId = 'home' | 'studio'
+export type RouteId = 'home' | 'studio' | 'type-lab' | 'color-lab' | 'archivo'
 
-const PATHS: Record<string, RouteId> = { '/': 'home', '/studio': 'studio' }
+const PATHS: Record<string, RouteId> = { '/': 'home', '/studio': 'studio', '/type-lab': 'type-lab', '/color-lab': 'color-lab', '/archivo': 'archivo' }
 
 export const TITLES: Record<RouteId, string> = {
   home: 'AFTERHOURS — From vision to visual',
   studio: 'Studio — AFTERHOURS',
+  'type-lab': 'Type Lab — AFTERHOURS',
+  'color-lab': 'Color Lab — AFTERHOURS',
+  archivo: 'Mis tableros — AFTERHOURS',
 }
 
 export const routeHref = (route: RouteId) => (route === 'home' ? '#/' : `#/${route}`)
