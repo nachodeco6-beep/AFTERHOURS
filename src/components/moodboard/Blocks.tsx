@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { TypePair } from '../../data/typePairs'
 import { hexToRgb, luminance } from '../../lib/color'
 import type { PaletteResult } from '../../lib/paletteImage'
-import { fontCss, specimenUrl } from '../../lib/typography'
+import { fontCss, specimenUrl, type TypeStyle } from '../../lib/typography'
 
 /** Every block fills its cell of the canvas (fixed size, the same on every screen). */
 const BLOCK = 'relative flex h-full min-h-0 w-full flex-col overflow-hidden [container-type:size]'
@@ -76,21 +76,25 @@ export function PaletteBlock({ palette, loading, vertical }: { palette: PaletteR
 
 // ─── Type ───────────────────────────────────────────────────────────────────
 
-export function TypeBlock({ pair, fontsReady }: { pair: TypePair; fontsReady: boolean | null }) {
-  const display: CSSProperties = fontCss(pair.display)
-  const text: CSSProperties = fontCss(pair.text)
+export function TypeBlock({ pair, fontsReady, style, onOpenLab }: { pair: TypePair; fontsReady: boolean | null; style: TypeStyle; onOpenLab?: () => void }) {
+  const display: CSSProperties = { ...fontCss(pair.display), letterSpacing: `${style.tracking}em` }
+  const text: CSSProperties = { ...fontCss(pair.text), lineHeight: style.leading }
   return (
     <div className={`${BLOCK} justify-between gap-3 border border-line p-4`}>
       <div className="flex items-baseline justify-between gap-2">
-        <BlockLabel>Tipografía</BlockLabel>
-        <p className="label-sm text-dim">{pair.category}</p>
+        <p className="label-sm min-w-0 truncate text-dim">Tipografía · {pair.category}</p>
+        {onOpenLab && (
+          <button type="button" onClick={onOpenLab} data-ui className="label-sm inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-mute hover:text-acid">
+            Type Lab <ArrowUpRight className="size-3" aria-hidden="true" />
+          </button>
+        )}
       </div>
       <p className="text-[clamp(2.5rem,32cqmin,9rem)] leading-[0.95] text-bone" style={display} aria-hidden="true">
         Aa
       </p>
       <div className="space-y-3">
         {/* in a low cell the sample paragraph gives way to the font names */}
-        <p className="text-[clamp(0.8rem,5.5cqi,1.05rem)] leading-snug text-mute [@container(max-height:250px)]:hidden" style={text}>
+        <p className="text-[clamp(0.8rem,5.5cqi,1.05rem)] text-mute [@container(max-height:250px)]:hidden" style={text}>
           Las fotos marcan el clima; la tipografía pone la voz. Este párrafo usa la fuente de texto del par.
         </p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line pt-3">

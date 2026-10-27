@@ -6,9 +6,9 @@ autor.
 
 Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 
-> **Etapa 2 de 5.** Ya funcionan la búsqueda real de fotos, la selección y el moodboard (plantillas,
-> paleta, tipografías, palabras clave y notas). Guardar proyectos y exportar llegan en las próximas
-> etapas.
+> **Etapa 3 de 5.** Ya funcionan la búsqueda real de fotos, la selección, el moodboard (plantillas,
+> formatos, paleta, tipografías, palabras clave y notas), guardar tableros y el Type Lab. Exportar llega
+> en la próxima etapa.
 
 ## Qué hay hoy
 
@@ -29,6 +29,14 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
   que informa Unsplash (y se aclara). Clic o Enter copia el HEX.
 - **Tipografías**: 62 pares de Google Fonts (`src/data/typePairs.ts`); se elige el que mejor coincide
   con las palabras del concepto y solo se cargan esas dos fuentes.
+- **Type Lab**: un panel para probar pares o fuentes sueltas (titular fijo y otro texto, o al revés)
+  con el título y las palabras del tablero, filtrando por estilo; ajusta peso del titular (solo los que
+  la fuente tiene, medidos contra Google Fonts en `src/data/fontWeights.ts`), espaciado, interlineado y
+  mayúsculas, y avisa cuando algo puede costar leerse en chico. Las muestras cargan su fuente de a una,
+  cuando aparecen en pantalla.
+- **Mis tableros**: «Guardar» deja el tablero en este navegador (localStorage, `src/lib/saved.ts`):
+  ajustes, fotos en orden con sus créditos y lo elegido en el Type Lab. Desde «Mis tableros» se abre,
+  duplica, renombra o borra. Avisa antes de perder cambios sin guardar y si el navegador no deja guardar.
 - **Modo demo**: si la búsqueda no está conectada, el Studio lo avisa, el botón de buscar queda
   deshabilitado y no se muestra ninguna foto.
 

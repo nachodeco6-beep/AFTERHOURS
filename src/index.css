@@ -54,6 +54,12 @@
     outline-offset: 3px;
   }
 
+  /* on the labs' light sheets the acid ring would vanish: dark ink instead */
+  [data-surface='paper'] :focus-visible,
+  [data-surface='gray'] :focus-visible {
+    outline-color: var(--color-ink);
+  }
+
   button {
     cursor: pointer;
   }

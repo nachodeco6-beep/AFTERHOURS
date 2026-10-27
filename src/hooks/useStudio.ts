@@ -19,8 +19,10 @@ export interface Picked extends Entry {
 
 import type { Template } from '../lib/compose'
 import type { Format } from '../lib/formats'
+import type { SavedBoard, WriteResult } from '../lib/saved'
+import type { PickedFonts, TypeStyle } from '../lib/typography'
 
-export type { Format, Template }
+export type { Format, PickedFonts, SavedBoard, Template, TypeStyle, WriteResult }
 
 /** What the moodboard shows besides the photos. All off = «Solo imágenes». */
 export interface Include {
@@ -48,6 +50,11 @@ export interface Board {
   pairOffset: number
   /** Art-direction notes; null = use the generated text. */
   notes: string | null
+  /** Fonts picked by hand in the Type Lab; null = the ranked pair («Otra combinación»). */
+  fonts: PickedFonts | null
+  typeStyle: TypeStyle
+  /** The saved board this one is (or null if it was never saved). */
+  savedId: string | null
   /** Changes on every «Armar», so the view can scroll to the new board. */
   buildId: number
 }
@@ -82,8 +89,22 @@ export interface StudioApi {
 
   board: Board | null
   buildBoard: (include: Include) => void
-  updateBoard: (patch: Partial<Omit<Board, 'buildId'>>) => void
+  updateBoard: (patch: Partial<Omit<Board, 'buildId' | 'savedId'>>) => void
   dismantleBoard: () => void
+
+  /** The tags the board speaks of (keywords, notes, type pair). */
+  concept: string[]
+  /** Boards saved in this browser, most recent first. */
+  saved: SavedBoard[]
+  /** False when the browser doesn't let us store anything (private mode, blocked). */
+  canSave: boolean
+  /** There's a board with changes that aren't saved. */
+  dirty: boolean
+  saveBoard: () => WriteResult
+  openSaved: (id: string) => void
+  duplicateSaved: (id: string) => WriteResult
+  renameSaved: (id: string, title: string) => WriteResult
+  removeSaved: (id: string) => WriteResult
 }
 
 export const StudioContext = createContext<StudioApi | null>(null)

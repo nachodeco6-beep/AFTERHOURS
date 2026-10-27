@@ -10,7 +10,7 @@ const EXAMPLE = 'Marca de ropa urbana, surf, California 90s, analógico, flash d
 const MAX_IDEA = MAX_TAGS * MAX_TAG_LENGTH
 
 export function IdeaEditor({ demo }: { demo: boolean }) {
-  const { idea, setIdea, search, searching, requestsFor, board, dismantleBoard } = useStudio()
+  const { idea, setIdea, search, searching, requestsFor, board, dirty, dismantleBoard } = useStudio()
   const [confirming, setConfirming] = useState(false)
   const parsed = useMemo(() => parseTags(idea), [idea])
   const tags = parsed.searchable
@@ -21,9 +21,12 @@ export function IdeaEditor({ demo }: { demo: boolean }) {
 
   const run = () => {
     if (!canSearch) return
-    // a built board would be lost: ask first
-    if (board) setConfirming(true)
-    else search(tags)
+    // unsaved changes on the board would be lost: ask first (a saved board stays in «Mis tableros»)
+    if (board && dirty) setConfirming(true)
+    else {
+      if (board) dismantleBoard()
+      search(tags)
+    }
   }
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -131,8 +134,8 @@ export function IdeaEditor({ demo }: { demo: boolean }) {
               search(tags)
             }}
           >
-            Tenés un moodboard armado. Si buscás de nuevo, el tablero se desarma (título, plantilla y notas). Las fotos que
-            elegiste quedan en tu selección y podés volver a armarlo.
+            Tu tablero tiene cambios sin guardar. Si buscás de nuevo, se desarma y esos cambios se pierden (las fotos que
+            elegiste quedan en tu selección). Si lo querés conservar, cancelá y tocá «Guardar».
           </ConfirmDialog>
         )}
       </AnimatePresence>
