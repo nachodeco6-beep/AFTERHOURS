@@ -7,7 +7,7 @@ autor.
 Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 
 > **Etapa 3 de 5.** Ya funcionan la búsqueda real de fotos, la selección, el moodboard (plantillas,
-> formatos, paleta, tipografías, palabras clave y notas), guardar tableros y el Type Lab. Exportar llega
+> formatos, paleta, tipografías, palabras clave y notas), guardar tableros, el Type Lab y el Color Lab. Exportar llega
 > en la próxima etapa.
 
 ## Qué hay hoy
@@ -34,6 +34,13 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
   la fuente tiene, medidos contra Google Fonts en `src/data/fontWeights.ts`), espaciado, interlineado y
   mayúsculas, y avisa cuando algo puede costar leerse en chico. Las muestras cargan su fuente de a una,
   cuando aparecen en pantalla.
+- **Color Lab**: la paleta del tablero como la trabajaría un diseñador (`src/lib/colorLab.ts`): candados y
+  «Regenerar» con otros tonos que están en las fotos (nunca inventa), de 3 a 8 colores, editar un color
+  (HEX, selector o cuentagotas sobre las fotos), roles (Fondo, Texto, Acento, Secundario), contraste WCAG
+  con «Ajustar a AA», vista previa con la tipografía del Type Lab y exportar (HEX, variables CSS, tokens
+  JSON y `.ase`). Se aplica al tablero al instante y se guarda con él.
+- **Mesa de trabajo**: los labs prueban sobre una hoja cuadriculada clara (o gris neutro, o negro), con
+  el resto del panel oscuro (`src/components/WorkSurface.tsx`).
 - **Mis tableros**: «Guardar» deja el tablero en este navegador (localStorage, `src/lib/saved.ts`):
   ajustes, fotos en orden con sus créditos y lo elegido en el Type Lab. Desde «Mis tableros» se abre,
   duplica, renombra o borra. Avisa antes de perder cambios sin guardar y si el navegador no deja guardar.
