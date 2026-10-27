@@ -1,0 +1,472 @@
+/* The 3D plan, as in the planta3d.html prototype. Scoped under .planta (loaded only with the plan). */
+.planta {
+  --pl-ink: #090909;
+  --pl-bone: #f1f0e8;
+  --pl-acid: #c7ff3d;
+  --pl-mute: #8f8e87;
+  --pl-line: rgba(241, 240, 232, 0.14);
+  --pl-panel: rgba(9, 9, 9, 0.82);
+  --pl-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --pl-body: 'Inter Tight', system-ui, sans-serif;
+  --pl-mono: 'JetBrains Mono', ui-monospace, monospace;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  background: var(--pl-ink);
+  color: var(--pl-bone);
+  font-family: var(--pl-body);
+  color-scheme: dark;
+}
+.planta .top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--pl-line);
+  background: var(--pl-panel);
+  position: relative;
+  z-index: 5;
+}
+.planta .logo {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--pl-display);
+  font-weight: 900;
+  font-size: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.planta .logo i {
+  width: 6px;
+  height: 6px;
+  background: var(--pl-acid);
+  margin-top: 3px;
+}
+.planta-views {
+  display: flex;
+  border: 1px solid #2a2a28;
+}
+.planta-views button {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  color: #8f8e87;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planta-views button[aria-pressed='true'] {
+  background: #c7ff3d;
+  color: #090909;
+}
+.planta-views button:not([aria-pressed='true']):hover {
+  color: #f1f0e8;
+}
+.planta button:focus-visible,
+.planta a:focus-visible,
+.planta-views button:focus-visible {
+  outline: 2px solid var(--pl-acid, #c7ff3d);
+  outline-offset: 2px;
+}
+
+.planta .stage {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 62%, rgba(199, 255, 61, 0.16), rgba(199, 255, 61, 0) 70%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(241, 240, 232, 0.12), rgba(241, 240, 232, 0) 70%),
+    linear-gradient(180deg, #171716 0%, #0b0b0b 55%, #050505 100%);
+}
+.planta .gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.planta .gl.dragging {
+  cursor: grabbing;
+}
+.planta .eyebrow {
+  position: absolute;
+  top: 14px;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--pl-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pl-mute);
+  pointer-events: none;
+  z-index: 2;
+}
+.planta .eyebrow b {
+  color: var(--pl-acid);
+  font-weight: 500;
+}
+.planta .hint {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: 14px;
+  font-family: var(--pl-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pl-mute);
+  pointer-events: none;
+}
+.planta .tags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.planta .tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  cursor: pointer;
+  border: 0;
+  padding: 4px 9px 3px;
+  background: rgba(9, 9, 9, 0.88);
+  color: var(--pl-bone);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.planta .tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-bottom: 0;
+  border-top: 7px solid rgba(9, 9, 9, 0.88);
+}
+.planta .tag small {
+  font-family: var(--pl-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+}
+.planta .tag span {
+  font-family: var(--pl-display);
+  font-weight: 900;
+  font-size: 18px;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+.planta .tag.on {
+  background: var(--pl-acid);
+  color: var(--pl-ink);
+}
+.planta .tag:nth-child(odd) {
+  rotate: -1.5deg;
+}
+.planta .tag:nth-child(even) {
+  rotate: 1.2deg;
+}
+.planta .tag.on::after {
+  border-top-color: var(--pl-acid);
+}
+.planta .tag.obra {
+  background: rgba(9, 9, 9, 0.75);
+  color: var(--pl-mute);
+  outline: 2px dashed #5e5d58;
+  cursor: default;
+}
+.planta .tag.obra::after {
+  display: none;
+}
+.planta .pl-grain {
+  position: absolute;
+  inset: -50%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: pl-grain 0.9s steps(6) infinite;
+}
+@keyframes pl-grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+.planta .vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .planta .pl-grain {
+    animation: none;
+  }
+}
+.planta .back {
+  position: absolute;
+  z-index: 3;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  top: 44px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--pl-line);
+  background: var(--pl-panel);
+  color: var(--pl-bone);
+  font-family: var(--pl-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.planta .back:hover {
+  border-color: var(--pl-acid);
+  color: var(--pl-acid);
+}
+.planta .status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  font-family: var(--pl-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pl-mute);
+  z-index: 4;
+  pointer-events: none;
+}
+.planta .status b {
+  color: var(--pl-acid);
+  font-weight: 500;
+}
+
+.planta .bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-top: 1px solid var(--pl-line);
+  background: var(--pl-panel);
+  position: relative;
+  z-index: 5;
+}
+.planta .sel {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-width: 0;
+}
+.planta .sel .no {
+  font-family: var(--pl-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--pl-acid);
+}
+.planta .sel h2 {
+  margin: 0;
+  font-family: var(--pl-display);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.planta .sel p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--pl-mute);
+}
+.planta .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--pl-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pl-bone);
+}
+.planta .who::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pl-acid);
+  box-shadow: 0 0 8px var(--pl-acid);
+}
+.planta .go {
+  height: 46px;
+  padding: 0 22px;
+  border: 0;
+  cursor: pointer;
+  background: var(--pl-acid);
+  color: var(--pl-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--pl-display);
+  font-weight: 900;
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.planta .go:hover {
+  background: var(--pl-bone);
+}
+.planta .go:disabled {
+  background: #2a2a28;
+  color: var(--pl-mute);
+  cursor: not-allowed;
+}
+
+/* accessible list of rooms: hidden until it gets the keyboard focus */
+.planta .rooms-list {
+  position: absolute;
+  z-index: 6;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  top: 44px;
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.planta .rooms-list:focus-within {
+  clip-path: none;
+  height: auto;
+  white-space: normal;
+  border: 1px solid var(--pl-line);
+  background: var(--pl-panel);
+  padding: 12px;
+}
+.planta .rooms-list ul,
+.planta .plan-simple ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.planta .rooms-list a,
+.planta .rooms-list span.off {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 4px;
+  color: var(--pl-bone);
+  text-decoration: none;
+  font-size: 14px;
+}
+.planta .rooms-list span.off {
+  color: var(--pl-mute);
+}
+.planta .rooms-list small {
+  font-family: var(--pl-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--pl-acid);
+}
+
+/* without WebGL: the rooms as a simple plan */
+.planta .plan-simple {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: auto;
+  padding: 24px max(16px, env(safe-area-inset-left, 0px));
+}
+.planta .plan-simple .board {
+  position: relative;
+  width: min(100%, 900px);
+  aspect-ratio: 1000 / 680;
+  margin: 16px auto 0;
+  border: 2px solid var(--pl-acid);
+  background: #121211;
+}
+.planta .plan-simple .room {
+  position: absolute;
+  border: 1px solid var(--pl-line);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px;
+  background: rgba(241, 240, 232, 0.03);
+  color: var(--pl-bone);
+  text-align: left;
+  cursor: pointer;
+}
+.planta .plan-simple .room.on {
+  outline: 2px solid var(--pl-acid);
+  outline-offset: -2px;
+  background: rgba(199, 255, 61, 0.08);
+}
+.planta .plan-simple .room.obra {
+  border-style: dashed;
+  color: var(--pl-mute);
+  cursor: default;
+}
+.planta .plan-simple .room small {
+  font-family: var(--pl-mono);
+  font-size: 10px;
+  color: var(--pl-acid);
+}
+.planta .plan-simple .room b {
+  font-family: var(--pl-display);
+  font-weight: 900;
+  font-size: clamp(14px, 2.4vw, 22px);
+  text-transform: uppercase;
+  line-height: 0.95;
+}
+
+@media (max-width: 640px) {
+  .planta .logo { font-size: 20px; }
+  .planta .sel h2 { font-size: 24px; }
+  .planta .tag span { font-size: 17px; }
+  .planta .go { height: 42px; font-size: 19px; }
+  .planta .hint { display: none; }
+}
