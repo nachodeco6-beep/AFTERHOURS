@@ -39,14 +39,26 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
   (HEX, selector o cuentagotas sobre las fotos), roles (Fondo, Texto, Acento, Secundario), contraste WCAG
   con «Ajustar a AA», vista previa con la tipografía del Type Lab y exportar (HEX, variables CSS, tokens
   JSON y `.ase`). Se aplica al tablero al instante y se guarda con él.
+- **Labs libres** (`#/type-lab`, `#/color-lab`): los dos labs sirven solos, sin moodboard, con un
+  selector «Explorar | Con mi tablero» (el segundo solo si hay un tablero abierto o guardado).
+  - **Type Lab · Explorar**: el catálogo de 62 pares (los 12 de Nacho primero) con filtros por estilo del
+    titular, clima y nombre de fuente (`src/lib/pairing.ts`, `src/data/pairInfo.ts`), «Otro par» al azar, una
+    mesa de prueba con tu titular y tu párrafo (tamaño, peso, espaciado, interlineado, mayúsculas), fijar
+    una fuente y buscarle compañera, favoritos, copiar el `<link>`, el CSS o el nombre y «Usar en mi tablero».
+  - **Color Lab · Explorar**: paletas desde un color base y una armonía (análogos, complementarios,
+    complementario dividido, tríada, tétrada, monocromática; `src/lib/harmony.ts`), «Otra» o la barra
+    espaciadora con candados, 61 paletas de inspiración con clima y luz (`src/data/palettes.ts`), colores
+    de una imagen tuya (se lee en el navegador, no se sube) o de una foto buscada (por el Worker, con
+    crédito), favoritos y «Usar en mi tablero». El resto es la misma mesa del Color Lab.
+  - Los favoritos de los dos labs se guardan aparte de los tableros, en `afterhours.labs`
+    (`src/lib/labs.ts`: versionado, lectura segura y migración).
 - **Mesa de trabajo**: los labs prueban sobre una hoja cuadriculada clara (o gris neutro, o negro), con
   el resto del panel oscuro (`src/components/WorkSurface.tsx`).
-- **Mis tableros**: «Guardar» deja el tablero en este navegador (localStorage, `src/lib/saved.ts`):
-  ajustes, fotos en orden con sus créditos y lo elegido en el Type Lab. Desde «Mis tableros» se abre,
+- **Guardar tableros**: «Guardar» deja el tablero en este navegador (localStorage, `src/lib/saved.ts`):
+  ajustes, fotos en orden con sus créditos y lo elegido en el Type Lab. Desde la Library se abre,
   duplica, renombra o borra. Avisa antes de perder cambios sin guardar y si el navegador no deja guardar.
-- **Rutas de las habitaciones**: además de la portada y el Studio, `#/type-lab` y `#/color-lab` abren cada
-  lab sobre el tablero actual (si no hay tablero, la habitación lo explica y ofrece ir al Studio) y
-  `#/archivo` lista los tableros guardados.
+- **Library (`#/library`, 04)**: lo guardado en este navegador, en tres filas: tableros, pares guardados y
+  paletas guardadas (se abren en su lab o se borran). La vieja `#/archivo` redirige a `#/library`.
 - **Planta 3D** (opcional): el control «Página | Planta» del encabezado muestra el estudio como una maqueta
   isométrica (`src/planta/`, three.js). Cada cartel es un botón: lo elige (borde verde y ficha abajo) y
   «Entrar» o doble clic vuela hasta la habitación y abre su ruta. Escape o «Página» la cierran y vuelven a
@@ -138,7 +150,7 @@ Todos los detalles, incluida la publicación paso a paso, están en [`worker/REA
 | `npm run preview` | Sirve la versión armada |
 | `npm run typecheck` | Solo revisa los tipos |
 | `npm run lint` | Revisa el código con oxlint |
-| `npm test` | Tests de la lógica pura (selección, composición, paleta, tipografías, notas, Color Lab, planta) con `node --test` |
+| `npm test` | Tests de la lógica pura (selección, composición, paleta, tipografías, notas, Color Lab, armonías, pares, favoritos, rutas, planta) con `node --test` |
 | `npm run deploy` | Arma la web para GitHub Pages y la publica en la rama `gh-pages` (funciona en Windows, macOS y Linux) |
 
 Para publicar con la búsqueda conectada, `npm run deploy` usa la `VITE_SEARCH_API_URL` de
@@ -154,18 +166,21 @@ En `worker/`: `npm test` (pruebas con Unsplash simulado), `npm run typecheck`, `
 
 ```
 src/
-  App.tsx              router por hash (#/, #/studio, #/type-lab, #/color-lab, #/archivo), foco y scroll al cambiar de vista; abre la planta
-  views/               HomeView (portada), StudioView y RoomViews (labs y archivo)
+  App.tsx              router por hash (#/, #/studio, #/type-lab, #/color-lab, #/library; #/archivo redirige), foco y scroll al cambiar de vista; abre la planta
+  views/               HomeView (portada), StudioView y RoomViews (labs y Library)
   planta/              planta 3D: state (lo único en el chunk principal), rooms, engine, textures, materials,
                        house, furniture, characters, atmosphere, intro, StudioPlanta3D (carga diferida)
-  components/moodboard Moodboard, BoardCanvas, Blocks, IncludeDialog, IncludeSwitches, EditPhotosDialog
+  components/moodboard Moodboard, BoardCanvas, Blocks, IncludeDialog, IncludeSwitches, EditPhotosDialog,
+                       TypeLab, ColorLab, TypeControls, PaletteWorkbench, FontSample, Eyedropper
+  components/labs      TypeExplore, ColorExplore (modo Explorar), SavedLabs (filas de la Library), LabUi
   components/          Header, Footer, Hero, HeroCanvas, Intro, Cursor, Marquee, Reveal,
                        SectionHeader, CreateButton, HowItWorks, StudioProvider
     studio/            IdeaEditor, TagChips, Results, SelectionTray, PhotoFrame, PhotoViewer, PhotoCredit
-  hooks/               useStudio, useBoardData, useDialog, useClock, useMediaQuery
+  hooks/               useStudio, useBoardData, useDialog, useClock, useMediaQuery, useLabs, useCopy, useSurface
   lib/                 compose, select, palette(+Image), typography, fonts, notes, color, pool,
-                       router, tags, searchApi, unsplash, layouts, format
-  data/                typePairs (62 pares), nav
+                       router, routes, tags, searchApi, unsplash, layouts, format, colorLab, harmony,
+                       pairing, labs, saved
+  data/                typePairs (62 pares), pairInfo (estilo y climas), palettes (61), moods, nav
 tests/                 tests de la lógica pura
 shared/types.ts        tipo Photo y respuestas, compartidos con el Worker
 worker/                Cloudflare Worker de búsqueda (proyecto aparte)
