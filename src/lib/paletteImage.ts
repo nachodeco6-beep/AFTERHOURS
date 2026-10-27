@@ -1,11 +1,16 @@
 import type { Photo } from '../../shared/types'
 import type { RGB } from './color'
+import { colorPool, poolFromReported, type PoolColor, type Role } from './colorLab'
 import { paletteFromPixels, paletteFromReported } from './palette'
 
 export interface PaletteResult {
   colors: string[]
   /** 'pixels' = read from the photos; 'unsplash' = Unsplash's dominant colours (fallback). */
   source: 'pixels' | 'unsplash'
+  /** Colours present in the photos, with the photo each comes from (the Color Lab's raw material). */
+  pool: PoolColor[]
+  /** Roles, when the palette was edited in the Color Lab. */
+  roles?: (Role | null)[]
 }
 
 const SAMPLE = 48
@@ -49,9 +54,9 @@ export async function extractPalette(photos: Photo[]): Promise<PaletteResult> {
   try {
     const samples = await Promise.all(photos.map((p) => sample(p.urls.small)))
     const colors = paletteFromPixels(samples)
-    if (colors.length) return { colors, source: 'pixels' }
+    if (colors.length) return { colors, source: 'pixels', pool: colorPool(samples) }
   } catch {
     // fall through to the reported colours
   }
-  return { colors: paletteFromReported(photos.map((p) => p.color)), source: 'unsplash' }
+  return { colors: paletteFromReported(photos.map((p) => p.color)), source: 'unsplash', pool: poolFromReported(photos.map((p) => p.color)) }
 }
