@@ -22,8 +22,16 @@ test('every pair has a style and 2 or 3 climas; every clima is used', () => {
     assert.ok(info.moods.length >= 2 && info.moods.length <= 3, `pair ${p.id}: ${info.moods.length} climas`)
     assert.equal(new Set(info.moods).size, info.moods.length)
   }
-  for (const m of MOODS) assert.ok(TYPE_PAIRS.some((p) => PAIR_INFO[p.id].moods.includes(m)), `${m} is used`)
-  for (const s of HEAD_STYLES) assert.ok(TYPE_PAIRS.some((p) => styleOf(p) === s), `${s} is used`)
+  for (const m of MOODS)
+    assert.ok(
+      TYPE_PAIRS.some((p) => PAIR_INFO[p.id].moods.includes(m)),
+      `${m} is used`,
+    )
+  for (const s of HEAD_STYLES)
+    assert.ok(
+      TYPE_PAIRS.some((p) => styleOf(p) === s),
+      `${s} is used`,
+    )
 })
 
 test('the filters combine: style AND clima AND name', () => {
@@ -78,7 +86,10 @@ test('never proposes the same font as its own companion; works the other way rou
       const fixed = p[side]
       const list = companions(fixed, side)
       assert.ok(list.length > 0)
-      assert.ok(list.every((c) => c.font.family !== fixed.family), `${fixed.family} (${side})`)
+      assert.ok(
+        list.every((c) => c.font.family !== fixed.family),
+        `${fixed.family} (${side})`,
+      )
       assert.equal(new Set(list.map((c) => c.font.family)).size, list.length, 'no repeats')
     }
   }

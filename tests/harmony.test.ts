@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { MIN_DISTANCE, type LabColor } from '../src/lib/colorLab.ts'
-import { distance, fromHarmony, growFree, HARMONIES, harmonyHues, harmonyPalette, hexToHsl, hslToHex, regenerateFree, rng, separate, surprise, type Harmony } from '../src/lib/harmony.ts'
+import {
+  distance,
+  fromHarmony,
+  growFree,
+  HARMONIES,
+  harmonyHues,
+  harmonyPalette,
+  hexToHsl,
+  hslToHex,
+  regenerateFree,
+  rng,
+  separate,
+  surprise,
+  type Harmony,
+} from '../src/lib/harmony.ts'
 
 const HEX = /^#[0-9A-F]{6}$/
 const hueGap = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b))
@@ -52,7 +66,10 @@ test('every palette is valid HEX, with no repeated or nearly equal colours', () 
       for (const n of [3, 5, 8]) {
         const out = harmonyPalette(surprise(rand), id, n, rand)
         assert.equal(out.length, n)
-        assert.ok(out.every((h) => HEX.test(h)), out.join(' '))
+        assert.ok(
+          out.every((h) => HEX.test(h)),
+          out.join(' '),
+        )
         assert.ok(minPairwise(out) >= MIN_DISTANCE, `${id} ×${n} (seed ${seed}): ${out.join(' ')}`)
       }
     }

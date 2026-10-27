@@ -154,7 +154,12 @@ export const findPalette = (r: LabsRecord, colors: { hex: string }[]) => r.palet
 /** Saves the palette (the same colours in the same order count as the same palette). */
 export function addPalette(r: LabsRecord, name: string, colors: SavedPaletteColor[], id: string, now: number): LabsRecord {
   const existing = findPalette(r, colors)
-  const entry: SavedPalette = { id: existing?.id ?? id, savedAt: now, name: name.trim().slice(0, 80) || 'Paleta', colors: colors.map((c) => ({ hex: c.hex.toUpperCase(), role: c.role })) }
+  const entry: SavedPalette = {
+    id: existing?.id ?? id,
+    savedAt: now,
+    name: name.trim().slice(0, 80) || 'Paleta',
+    colors: colors.map((c) => ({ hex: c.hex.toUpperCase(), role: c.role })),
+  }
   return { ...r, palettes: recentFirst([entry, ...r.palettes.filter((p) => p.id !== entry.id)]) }
 }
 

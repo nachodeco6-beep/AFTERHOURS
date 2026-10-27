@@ -80,7 +80,15 @@ test('broken data is dropped without breaking anything', () => {
       null,
     ],
     palettes: [
-      { id: 'ok', name: '  Noche  ', colors: [{ hex: '#000000', role: 'fondo' }, { hex: '#ffffff', role: 'fondo' }, { hex: '#c7ff3d', role: 'raro' }] },
+      {
+        id: 'ok',
+        name: '  Noche  ',
+        colors: [
+          { hex: '#000000', role: 'fondo' },
+          { hex: '#ffffff', role: 'fondo' },
+          { hex: '#c7ff3d', role: 'raro' },
+        ],
+      },
       { id: 'bad-hex', colors: ['#000', 'blue', '#ffffff'] },
       { id: 'too-few', colors: ['#000000', '#ffffff'] },
       { id: 'too-many', colors: Array.from({ length: 9 }, (_, i) => `#0${i}0000`) },

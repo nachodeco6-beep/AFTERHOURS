@@ -23,7 +23,11 @@ test('no palette repeats a colour (nor two nearly equal ones)', () => {
 })
 
 test('every clima and every light has palettes; the brand’s come first', () => {
-  for (const m of MOODS) assert.ok(PALETTES.some((p) => p.mood === m), m)
+  for (const m of MOODS)
+    assert.ok(
+      PALETTES.some((p) => p.mood === m),
+      m,
+    )
   for (const l of LIGHTS) assert.ok(PALETTES.filter((p) => lightOf(p.colors) === l).length >= 5, l)
   const brand = PALETTES.filter((p) => p.brand)
   assert.ok(brand.length >= 1)

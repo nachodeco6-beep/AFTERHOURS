@@ -33,9 +33,7 @@ export function filterPairs(pairs: TypePair[], f: PairFilter): TypePair[] {
   const q = normalize(f.query)
   return pairs.filter(
     (p) =>
-      (!f.style || styleOf(p) === f.style) &&
-      (!f.mood || moodsOf(p).includes(f.mood)) &&
-      (!q || normalize(p.display.family).includes(q) || normalize(p.text.family).includes(q)),
+      (!f.style || styleOf(p) === f.style) && (!f.mood || moodsOf(p).includes(f.mood)) && (!q || normalize(p.display.family).includes(q) || normalize(p.text.family).includes(q)),
   )
 }
 
