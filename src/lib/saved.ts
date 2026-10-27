@@ -8,12 +8,15 @@
  * older ones and drops anything that doesn't look like a board.
  */
 import type { Photo } from '../../shared/types.ts'
+import { MAX_COLORS, MIN_COLORS, ROLES, type LabColor, type PaletteEdit, type Role } from './colorLab.ts'
+import { hexToRgb, rgbToHex } from './color.ts'
 import type { Template } from './compose.ts'
 import { DEFAULT_FORMAT, FORMAT_ORDER, type Format } from './formats.ts'
 import { DEFAULT_TYPE_STYLE, type PickedFonts, type TypeStyle } from './typography.ts'
 
 export const STORAGE_KEY = 'afterhours.boards'
-export const SAVED_VERSION = 1
+/** 1: first version. 2: adds the Color Lab palette. */
+export const SAVED_VERSION = 2
 
 export interface SavedInclude {
   palette: boolean
@@ -35,6 +38,8 @@ export interface SavedBoard {
   pairOffset: number
   fonts: PickedFonts | null
   typeStyle: TypeStyle
+  /** Palette edited in the Color Lab; null = the automatic one. */
+  palette: PaletteEdit | null
   /** The tags of the idea: keywords and notes come from them. */
   concept: string[]
   photos: { photo: Photo; tag: string }[]
@@ -47,7 +52,7 @@ export const makeRecord = (content: BoardContent, id: string, savedAt: number): 
 
 /** Same content ⇔ same signature (used to know if there are unsaved changes). */
 export const signature = (c: BoardContent) =>
-  JSON.stringify([c.title, c.template, c.format, c.include, c.notes, c.pairOffset, c.fonts, c.typeStyle, c.concept, c.photos.map((p) => [p.photo.id, p.tag])])
+  JSON.stringify([c.title, c.template, c.format, c.include, c.notes, c.pairOffset, c.fonts, c.typeStyle, c.palette, c.concept, c.photos.map((p) => [p.photo.id, p.tag])])
 
 export const contentOf = (r: SavedBoard): BoardContent => {
   const { version: _v, id: _i, savedAt: _s, ...content } = r
@@ -89,7 +94,22 @@ function readStyle(v: unknown): TypeStyle {
   }
 }
 
-/** One stored record, migrated to the current version; null if it isn't a usable board. */
+function readPalette(v: unknown): PaletteEdit | null {
+  if (!isObj(v) || !Array.isArray(v.colors) || !str(v.basis)) return null
+  const colors: LabColor[] = []
+  for (const c of v.colors) {
+    const rgb = isObj(c) && str(c.hex) ? hexToRgb(c.hex) : null
+    if (!isObj(c) || !rgb) return null
+    const role = ROLES.includes(c.role as Role) ? (c.role as Role) : null
+    colors.push({ hex: rgbToHex(rgb), locked: c.locked === true, role: role && !colors.some((o) => o.role === role) ? role : null, photoId: str(c.photoId) ? c.photoId : null })
+  }
+  return colors.length >= MIN_COLORS && colors.length <= MAX_COLORS ? { colors, basis: v.basis } : null
+}
+
+/**
+ * One stored record, migrated to the current version; null if it isn't a
+ * usable board. v1 → v2: no Color Lab yet, so the automatic palette.
+ */
 export function readRecord(v: unknown): SavedBoard | null {
   if (!isObj(v) || !str(v.id) || !Array.isArray(v.photos)) return null
   const photos = v.photos
@@ -116,6 +136,7 @@ export function readRecord(v: unknown): SavedBoard | null {
     pairOffset: num(v.pairOffset) ? Math.trunc(v.pairOffset) : 0,
     fonts,
     typeStyle: readStyle(v.typeStyle),
+    palette: readPalette(v.palette),
     concept: Array.isArray(v.concept) ? v.concept.filter(str) : [],
     photos,
   }

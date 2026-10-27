@@ -34,6 +34,8 @@ export interface CanvasProps {
   scale: number
   /** Opens the Type Lab from the type block. */
   onTypeLab?: () => void
+  /** Opens the Color Lab from the palette block. */
+  onColorLab?: () => void
 }
 
 function PhotoCell({ photo, number, width }: { photo: Photo; number: number; width: number }) {
@@ -53,7 +55,7 @@ function PhotoCell({ photo, number, width }: { photo: Photo; number: number; wid
  * The board itself: a canvas with the format's fixed size (see formats.ts),
  * the same on every screen. The parent scales it to fit.
  */
-export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes, scale, onTypeLab }: CanvasProps) {
+export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair, fontsReady, notes, onTitle, onNotes, scale, onTypeLab, onColorLab }: CanvasProps) {
   const { include, template, format } = board
   const bare = onlyImages(include)
   const blocks = useMemo<BlockKind[]>(
@@ -84,7 +86,7 @@ export function BoardCanvas({ board, photos, tags, palette, paletteLoading, pair
       case 'photo':
         return <PhotoCell photo={photos[item.index]} number={item.index + 1} width={w * scale} />
       case 'palette':
-        return <PaletteBlock palette={palette} loading={paletteLoading} vertical={w / h < 0.8} />
+        return <PaletteBlock palette={palette} loading={paletteLoading} vertical={w / h < 0.8} onOpenLab={onColorLab} />
       case 'type':
         return <TypeBlock pair={pair} fontsReady={fontsReady} style={board.typeStyle} onOpenLab={onTypeLab} />
       case 'keywords':

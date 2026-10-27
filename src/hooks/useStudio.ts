@@ -17,6 +17,7 @@ export interface Picked extends Entry {
   auto: boolean
 }
 
+import type { PaletteEdit } from '../lib/colorLab'
 import type { Template } from '../lib/compose'
 import type { Format } from '../lib/formats'
 import type { SavedBoard, WriteResult } from '../lib/saved'
@@ -53,6 +54,8 @@ export interface Board {
   /** Fonts picked by hand in the Type Lab; null = the ranked pair («Otra combinación»). */
   fonts: PickedFonts | null
   typeStyle: TypeStyle
+  /** Palette edited in the Color Lab; null = the automatic one, read from the photos. */
+  paletteEdit: PaletteEdit | null
   /** The saved board this one is (or null if it was never saved). */
   savedId: string | null
   /** Changes on every «Armar», so the view can scroll to the new board. */

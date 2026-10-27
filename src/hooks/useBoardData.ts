@@ -57,7 +57,13 @@ export function useTypePair(concept: string[], offset: number, enabled: boolean,
 export function useBoardData(board: Board | null, photos: Photo[]) {
   const { concept: tags } = useStudio()
   const include = board?.include
-  const { palette, loading: paletteLoading } = usePalette(photos, Boolean(board && include?.palette))
+  const { palette: autoPalette, loading } = usePalette(photos, Boolean(board && include?.palette))
+  // a palette edited in the Color Lab replaces the automatic one (order, count and roles)
+  const edit = board?.paletteEdit
+  const palette: PaletteResult | null = edit
+    ? { colors: edit.colors.map((c) => c.hex), roles: edit.colors.map((c) => c.role), source: autoPalette?.source ?? 'pixels', pool: autoPalette?.pool ?? [] }
+    : autoPalette
+  const paletteLoading = edit ? false : loading
   const { pair, auto, ranked, position, fontsReady } = useTypePair(tags, board?.pairOffset ?? 0, Boolean(board && include?.type), board?.fonts ?? null, board?.typeStyle ?? null)
 
   const generated = writeNotes({
@@ -67,5 +73,5 @@ export function useBoardData(board: Board | null, photos: Photo[]) {
     pair: include?.type ? { display: pair.display.family, text: pair.text.family, category: pair.category } : null,
   })
 
-  return { tags, palette, paletteLoading, pair, auto, ranked, position, fontsReady, notes: board?.notes ?? generated }
+  return { tags, palette, autoPalette, paletteLoading, pair, auto, ranked, position, fontsReady, notes: board?.notes ?? generated }
 }

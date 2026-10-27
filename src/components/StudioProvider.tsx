@@ -148,6 +148,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         notes: prev?.notes ?? null,
         fonts: prev?.fonts ?? null,
         typeStyle: prev?.typeStyle ?? DEFAULT_TYPE_STYLE,
+        paletteEdit: prev?.paletteEdit ?? null,
         savedId: prev?.savedId ?? null,
         buildId: (prev?.buildId ?? 0) + 1,
       }))
@@ -178,6 +179,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pairOffset: board.pairOffset,
         fonts: board.fonts,
         typeStyle: board.typeStyle,
+        palette: board.paletteEdit,
         concept,
         photos: selection.map((s) => ({ photo: s.photo, tag: s.tag })),
       },
@@ -220,6 +222,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         notes: r.notes,
         fonts: r.fonts,
         typeStyle: r.typeStyle,
+        paletteEdit: r.palette,
         savedId: r.id,
         buildId: (prev?.buildId ?? 0) + 1,
       }))

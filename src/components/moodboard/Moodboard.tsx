@@ -1,13 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUp, Check, ChevronDown, Pencil, Save, Shuffle, Type } from 'lucide-react'
+import { ArrowUp, Check, ChevronDown, Palette, Pencil, Save, Shuffle, Type } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardData } from '../../hooks/useBoardData'
 import { useStudio, type Format, type Template, type WriteResult } from '../../hooks/useStudio'
+import { basisOf, recalc } from '../../lib/colorLab'
 import { FORMAT_ORDER, FORMATS } from '../../lib/formats'
 import { MIN_SELECTION } from '../../lib/select'
 import { BoardCanvas } from './BoardCanvas'
 import { BoardStage } from './BoardStage'
 import { BoardViewer } from './BoardViewer'
+import { ColorLab } from './ColorLab'
 import { EditPhotosDialog } from './EditPhotosDialog'
 import { IncludeSwitches } from './IncludeSwitches'
 import { TypeLab } from './TypeLab'
@@ -30,6 +32,7 @@ export function Moodboard() {
   const [showInclude, setShowInclude] = useState(false)
   const [viewing, setViewing] = useState(false)
   const [typeLab, setTypeLab] = useState(false)
+  const [colorLab, setColorLab] = useState(false)
   const [saveResult, setSaveResult] = useState<WriteResult | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const photos = useMemo(() => selection.map((s) => s.photo), [selection])
@@ -73,8 +76,17 @@ export function Moodboard() {
         setViewing(false)
         setTypeLab(true)
       }}
+      onColorLab={() => {
+        setViewing(false)
+        setColorLab(true)
+      }}
     />
   )
+
+  // the photos changed under an edited palette: keep it, or recalculate (locked colours stay)
+  const edit = board.paletteEdit
+  const photosBasis = basisOf(photos.map((p) => p.id))
+  const stale = edit !== null && data.autoPalette !== null && edit.basis !== photosBasis
 
   const save = () => setSaveResult(saveBoard())
 
@@ -189,6 +201,11 @@ export function Moodboard() {
                 <Shuffle className="size-3.5" aria-hidden="true" /> Otra combinación
               </button>
             )}
+            {board.include.palette && (
+              <button type="button" onClick={() => setColorLab(true)} className="label inline-flex h-10 items-center gap-2 border border-line px-3 text-bone hover:border-bone">
+                <Palette className="size-3.5" aria-hidden="true" /> Color Lab
+              </button>
+            )}
             {board.include.type && (
               <button type="button" onClick={() => setTypeLab(true)} className="label inline-flex h-10 items-center gap-2 border border-line px-3 text-bone hover:border-bone">
                 <Type className="size-3.5" aria-hidden="true" /> Type Lab
@@ -221,6 +238,30 @@ export function Moodboard() {
         </AnimatePresence>
       </div>
 
+      {stale && board.include.palette && (
+        <div role="status" className="mb-4 flex flex-col gap-3 border border-line bg-char/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-bone">
+            Cambiaste las fotos: la paleta automática sería otra. ¿Mantenés la tuya o la recalculás con las fotos nuevas? Los colores con candado se quedan.
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => edit && updateBoard({ paletteEdit: { ...edit, basis: photosBasis } })}
+              className="label inline-flex h-10 items-center border border-line px-3 text-bone hover:border-bone"
+            >
+              Mantener la mía
+            </button>
+            <button
+              type="button"
+              onClick={() => edit && data.autoPalette && updateBoard({ paletteEdit: recalc(edit, data.autoPalette.pool, photos.map((p) => p.id)) })}
+              className="label inline-flex h-10 items-center bg-bone px-3 text-ink hover:bg-acid"
+            >
+              Recalcular
+            </button>
+          </div>
+        </div>
+      )}
+
       {enough ? (
         <BoardStage format={board.format} viewing={viewing} onView={() => setViewing(true)}>
           {canvas}
@@ -248,6 +289,11 @@ export function Moodboard() {
             onChange={(patch) => updateBoard(patch)}
             onClose={() => setTypeLab(false)}
           />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {colorLab && board.include.palette && (
+          <ColorLab board={board} photos={photos} auto={data.autoPalette} pair={data.pair} onChange={(paletteEdit) => updateBoard({ paletteEdit })} onClose={() => setColorLab(false)} />
         )}
       </AnimatePresence>
       <AnimatePresence>

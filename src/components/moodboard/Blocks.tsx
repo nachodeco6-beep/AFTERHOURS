@@ -1,18 +1,17 @@
 import { ArrowUpRight, Check, Copy } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { TypePair } from '../../data/typePairs'
 import { hexToRgb, luminance } from '../../lib/color'
 import type { PaletteResult } from '../../lib/paletteImage'
+import { ROLE_LABEL, type Role } from '../../lib/colorLab'
 import { fontCss, specimenUrl, type TypeStyle } from '../../lib/typography'
 
 /** Every block fills its cell of the canvas (fixed size, the same on every screen). */
 const BLOCK = 'relative flex h-full min-h-0 w-full flex-col overflow-hidden [container-type:size]'
 
-const BlockLabel = ({ children }: { children: ReactNode }) => <p className="label-sm text-dim">{children}</p>
-
 // ─── Palette ────────────────────────────────────────────────────────────────
 
-function Swatch({ hex, onCopied }: { hex: string; onCopied: (hex: string | null) => void }) {
+function Swatch({ hex, role, onCopied }: { hex: string; role: Role | null; onCopied: (hex: string | null) => void }) {
   const [copied, setCopied] = useState(false)
   const timer = useRef<number>(0)
   useEffect(() => () => window.clearTimeout(timer.current), [])
@@ -35,10 +34,15 @@ function Swatch({ hex, onCopied }: { hex: string; onCopied: (hex: string | null)
     <button
       type="button"
       onClick={copy}
-      aria-label={`Copiar el color ${hex}`}
+      aria-label={`Copiar el color ${hex}${role ? `, ${ROLE_LABEL[role]}` : ''}`}
       className={`group/sw relative flex min-h-12 min-w-0 flex-1 items-end p-2 text-left focus-visible:z-10 focus-visible:outline-offset-[-3px] ${light ? 'text-ink' : 'text-bone'}`}
       style={{ backgroundColor: hex }}
     >
+      {role && (
+        <span className="label-sm absolute top-2 left-2 opacity-80 [@container(max-width:340px)]:hidden" aria-hidden="true">
+          {ROLE_LABEL[role]}
+        </span>
+      )}
       <span className="label-sm flex items-center gap-1 tabular-nums">
         {copied ? <Check className="size-3" strokeWidth={2.5} aria-hidden="true" /> : <Copy className="size-3 opacity-0 transition-opacity group-hover/sw:opacity-70 group-focus-visible/sw:opacity-70" strokeWidth={2} aria-hidden="true" />}
         {/* a small palette keeps the colours and drops the codes (still in the button's label) */}
@@ -48,13 +52,19 @@ function Swatch({ hex, onCopied }: { hex: string; onCopied: (hex: string | null)
   )
 }
 
-export function PaletteBlock({ palette, loading, vertical }: { palette: PaletteResult | null; loading: boolean; vertical: boolean }) {
+export function PaletteBlock({ palette, loading, vertical, onOpenLab }: { palette: PaletteResult | null; loading: boolean; vertical: boolean; onOpenLab?: () => void }) {
   const [announce, setAnnounce] = useState('')
   return (
     <div className={`${BLOCK} gap-2 bg-char p-3`}>
       <div className="flex items-baseline justify-between gap-2">
-        <BlockLabel>Paleta</BlockLabel>
-        {palette?.source === 'unsplash' && <p className="label-sm text-mute">Aproximada · colores de Unsplash</p>}
+        <p className="label-sm min-w-0 truncate text-dim">
+          Paleta{palette?.source === 'unsplash' && <span className="text-mute"> · Aproximada · colores de Unsplash</span>}
+        </p>
+        {onOpenLab && (
+          <button type="button" onClick={onOpenLab} data-ui className="label-sm inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-mute hover:text-acid">
+            Color Lab <ArrowUpRight className="size-3" aria-hidden="true" />
+          </button>
+        )}
       </div>
       {loading || !palette ? (
         <p className="label-sm flex flex-1 items-center gap-2 text-mute">
@@ -62,8 +72,8 @@ export function PaletteBlock({ palette, loading, vertical }: { palette: PaletteR
         </p>
       ) : (
         <div className={`flex min-h-0 flex-1 ${vertical ? 'flex-col' : 'flex-row'}`} role="group" aria-label="Colores de la paleta">
-          {palette.colors.map((hex) => (
-            <Swatch key={hex} hex={hex} onCopied={(h) => setAnnounce(h ? `Copiado ${h}` : 'No se pudo copiar el color')} />
+          {palette.colors.map((hex, i) => (
+            <Swatch key={`${hex}${i}`} hex={hex} role={palette.roles?.[i] ?? null} onCopied={(h) => setAnnounce(h ? `Copiado ${h}` : 'No se pudo copiar el color')} />
           ))}
         </div>
       )}
