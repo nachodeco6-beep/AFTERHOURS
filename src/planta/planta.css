@@ -482,4 +482,13 @@
   .planta .tag span { font-size: 17px; }
   .planta .go { height: 42px; font-size: 19px; }
   .planta .hint { display: none; }
+  /* narrow: only the chosen room's sign in full; the others shrink to their number (the name stays in aria-label) */
+  .planta .tag:not(.on) { min-width: 32px; height: 28px; padding: 0 6px; justify-content: center; align-items: center; rotate: 0deg; }
+  .planta .tag:not(.on) span { display: none; }
+  .planta .tag:not(.on) small { font-size: 12px; letter-spacing: 0.04em; opacity: 1; }
+  .planta .tag:not(.on)::after { bottom: -5px; margin-left: -4px; border-left-width: 4px; border-right-width: 4px; border-top-width: 5px; }
+  /* a keyboard shows the name of the sign it's on */
+  .planta .tag:not(.on):focus-visible { height: auto; padding: 4px 9px 3px; z-index: 2; }
+  .planta .tag:not(.on):focus-visible span { display: inline; }
+  .planta .tag.on { z-index: 1; }
 }
