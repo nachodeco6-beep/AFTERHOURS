@@ -394,7 +394,7 @@ function Inspiration({ current, onPick }: { current: string | null; onPick: (p: 
       </p>
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {list.map((p) => (
-          <li key={p.id}>
+          <li key={p.id} className="min-w-0">
             <button
               type="button"
               aria-pressed={current === p.id}
@@ -578,7 +578,7 @@ function SavedPalettes({ onOpen, onRemove }: { onOpen: (p: ReturnType<typeof use
   return (
     <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {palettes.map((p) => (
-        <li key={p.id} className="border border-line p-2">
+        <li key={p.id} className="min-w-0 border border-line p-2">
           <Strip hexes={p.colors.map((c) => c.hex)} />
           <p className="mt-2 truncate text-sm text-bone">{p.name}</p>
           <div className="-mx-1 mt-1 flex flex-wrap">
