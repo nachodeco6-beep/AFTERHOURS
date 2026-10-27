@@ -95,6 +95,19 @@ test('«Otra» keeps locked colours (place, colour and role) and changes the res
   }
 })
 
+test('generating from a base colour puts that colour in, next to the locked ones', () => {
+  const rand = rng(7)
+  for (const h of HARMONIES.map((x) => x.id)) {
+    const colors = fromHarmony('#AC4AE4', 'triada', 5, rand).map((c, i) => (i === 0 ? { ...c, locked: true } : c))
+    const { colors: next } = regenerateFree(colors, h, rand, false, '#1E90FF')
+    assert.equal(next[0].hex, colors[0].hex, 'locked stays')
+    assert.ok(
+      next.some((c) => c.hex === '#1E90FF'),
+      `${h}: ${next.map((c) => c.hex).join(' ')}`,
+    )
+  }
+})
+
 test('with everything locked, «Otra» changes nothing', () => {
   const colors: LabColor[] = fromHarmony('#336699', 'analogos', 4, rng(1)).map((c) => ({ ...c, locked: true }))
   assert.deepEqual(regenerateFree(colors, 'analogos', rng(2)).colors, colors)

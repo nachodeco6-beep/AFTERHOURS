@@ -162,22 +162,24 @@ export function fromHarmony(base: string, harmony: Harmony, n: number, rand: () 
 
 /**
  * «Otra» (or the space bar): only the colours without a lock change. The new
- * ones follow a harmony anchored on the first locked colour (or on a fresh
- * base when nothing is locked); with `wander`, the harmony itself may change
- * too. Locked colours keep their place, colour and role. Returns the harmony used.
+ * ones follow a harmony anchored on `base`, or else on the first locked colour,
+ * or else on a fresh base; with `wander`, the harmony itself may change too.
+ * Locked colours keep their place, colour and role. Returns the harmony used.
  */
-export function regenerateFree(colors: LabColor[], harmony: Harmony, rand: () => number, wander = false): { colors: LabColor[]; harmony: Harmony } {
+export function regenerateFree(colors: LabColor[], harmony: Harmony, rand: () => number, wander = false, base: string | null = null): { colors: LabColor[]; harmony: Harmony } {
   const locked = colors.filter((c) => c.locked)
   if (locked.length === colors.length) return { colors, harmony }
   const used: Harmony = wander && rand() < 0.35 ? pickOne(rand, HARMONIES).id : harmony
-  const anchor = locked[0]?.hex ?? surprise(rand)
+  const anchor = base ?? locked[0]?.hex ?? surprise(rand)
   const fresh = harmonyPalette(anchor, used, colors.length, rand, 1)
-  // the locked colours stand for the harmony colours closest to them
+  // the locked colours stand for the harmony colours closest to them (a base asked for is never one of those)
   const spare = [...fresh]
+  const keepFirst = base !== null ? 1 : 0
   for (const c of locked) {
-    let best = 0
+    if (spare.length <= keepFirst) break
+    let best = keepFirst
     spare.forEach((f, i) => {
-      if (distance(f, c.hex) < distance(spare[best], c.hex)) best = i
+      if (i >= keepFirst && distance(f, c.hex) < distance(spare[best], c.hex)) best = i
     })
     spare.splice(best, 1)
   }
