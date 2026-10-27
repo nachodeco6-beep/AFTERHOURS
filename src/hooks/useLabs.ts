@@ -4,7 +4,7 @@ import { browserStorage, newId, type WriteResult } from '../lib/saved'
 import type { PickedFonts, TypeStyle } from '../lib/typography'
 
 /**
- * The labs' favourites, shared by the Type Lab, the Color Lab and the Archivo
+ * The labs' favourites, shared by the Type Lab, the Color Lab and the Library
  * (a tiny store over localStorage: every view sees the same list).
  */
 const storage = browserStorage()
@@ -23,30 +23,30 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l)
 }
 
-/** What a favourite opened from the Archivo asks its lab to show (taken once). */
+/** What a favourite opened from the Library asks its lab to show (taken once). */
 export type OpenRequest = { kind: 'pair'; id: string } | { kind: 'palette'; id: string }
 let pending: OpenRequest | null = null
 export const requestOpen = (r: OpenRequest) => {
   pending = r
 }
-export const takeOpenRequest = () => {
-  const r = pending
+/** Read it while building the view; clear it once the view is up (StrictMode builds twice). */
+export const peekOpenRequest = (kind: OpenRequest['kind']) => (pending?.kind === kind ? pending : null)
+export const clearOpenRequest = () => {
   pending = null
-  return r
+}
+
+const actions = {
+  savePair: (fonts: PickedFonts, style: TypeStyle) => commit(addPair(state, fonts, style, newId(), Date.now())),
+  removePair: (id: string) => commit(removePair(state, id)),
+  savePalette: (name: string, colors: SavedPaletteColor[]) => commit(addPalette(state, name, colors, newId(), Date.now())),
+  removePalette: (id: string) => commit(removePalette(state, id)),
+  /** Remembered quietly (no message if the browser doesn't let us). */
+  setLastPair: (fonts: PickedFonts) => {
+    if (state.lastPair?.display !== fonts.display || state.lastPair?.text !== fonts.text) commit(setLastPair(state, fonts))
+  },
 }
 
 export function useLabs() {
   const labs = useSyncExternalStore(subscribe, () => state)
-  return {
-    ...labs,
-    canSave: storage !== null,
-    savePair: (fonts: PickedFonts, style: TypeStyle) => commit(addPair(state, fonts, style, newId(), Date.now())),
-    removePair: (id: string) => commit(removePair(state, id)),
-    savePalette: (name: string, colors: SavedPaletteColor[]) => commit(addPalette(state, name, colors, newId(), Date.now())),
-    removePalette: (id: string) => commit(removePalette(state, id)),
-    /** Remembered quietly (no message if the browser doesn't let us). */
-    setLastPair: (fonts: PickedFonts) => {
-      if (state.lastPair?.display !== fonts.display || state.lastPair?.text !== fonts.text) commit(setLastPair(state, fonts))
-    },
-  }
+  return { ...labs, ...actions, canSave: storage !== null }
 }
