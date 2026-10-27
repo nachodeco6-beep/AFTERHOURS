@@ -30,8 +30,11 @@ function Thumb({ board }: { board: SavedBoard }) {
   )
 }
 
-/** «Mis tableros»: boards saved in this browser. */
-export function MyBoards() {
+/**
+ * «Mis tableros»: boards saved in this browser. `heading={false}` when the page
+ * already has its own (the Archivo room); `onOpened` after opening one.
+ */
+export function MyBoards({ heading = true, onOpened }: { heading?: boolean; onOpened?: () => void } = {}) {
   const { saved, canSave, board, dirty, openSaved, duplicateSaved, renameSaved, removeSaved } = useStudio()
   const [renaming, setRenaming] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<SavedBoard | null>(null)
@@ -42,10 +45,14 @@ export function MyBoards() {
 
   const report = (res: WriteResult, done: string) => setMessage(res === 'ok' ? done : FAILED[res])
 
+  const openNow = (id: string) => {
+    openSaved(id)
+    onOpened?.()
+  }
   const open = (r: SavedBoard) => {
     // unsaved changes would be lost: ask first
     if (board && dirty) setOpening(r)
-    else openSaved(r.id)
+    else openNow(r.id)
   }
 
   const finishRename = (r: SavedBoard, value: string) => {
@@ -65,10 +72,10 @@ export function MyBoards() {
   const action = 'label-sm inline-flex h-9 items-center gap-1.5 px-2 text-mute transition-colors hover:text-bone'
 
   return (
-    <section aria-labelledby="saved-title" className="mt-20 md:mt-28">
+    <section aria-labelledby="saved-title" className={heading ? 'mt-20 md:mt-28' : ''}>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="label text-acid">03 — Archivo</p>
+        <div className={heading ? '' : 'sr-only'}>
+          <p className="label text-acid">04 — Archivo</p>
           <h2 id="saved-title" className="display mt-2 text-[clamp(2.25rem,5vw,4rem)] text-bone">
             Mis tableros
           </h2>
@@ -152,7 +159,7 @@ export function MyBoards() {
             onConfirm={() => {
               const r = opening
               setOpening(null)
-              openSaved(r.id)
+              openNow(r.id)
             }}
           >
             Tu tablero tiene cambios sin guardar. Si abrís «{opening.title}», esos cambios se pierden. Si los querés conservar, cancelá y tocá «Guardar».
