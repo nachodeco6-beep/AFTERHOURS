@@ -52,7 +52,7 @@ export function SavedLabs() {
               const p = effectivePair(pairById(s.fonts.display) ?? pairById(DEFAULT_PAIR_ID)!, s.fonts, s.style)
               const name = pairName(p)
               return (
-                <li key={s.id} className="flex flex-col border border-line">
+                <li key={s.id} className="flex min-w-0 flex-col border border-line">
                   <div className="flex-1 bg-[#FAFAF7] p-4 text-ink">
                     <FontSample spec={p.display} text="Noches de ciudad" className="line-clamp-2 block text-[1.6rem] leading-[1.02]" />
                     <FontSample spec={p.text} text="Un estudio que abre cuando cae el sol." className="mt-1.5 block truncate text-sm text-[#4a4945]" />
@@ -96,7 +96,7 @@ export function SavedLabs() {
         {palettes.length ? (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {palettes.map((p) => (
-              <li key={p.id} className="flex flex-col border border-line">
+              <li key={p.id} className="flex min-w-0 flex-col border border-line">
                 <span aria-hidden="true" className="flex h-24">
                   {p.colors.map((c, i) => (
                     <span key={i} className="flex-1" style={swatchStyle(c.hex)} />
