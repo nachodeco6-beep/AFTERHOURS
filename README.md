@@ -44,6 +44,15 @@ Web publicada: https://nachodeco6-beep.github.io/AFTERHOURS/
 - **Mis tableros**: «Guardar» deja el tablero en este navegador (localStorage, `src/lib/saved.ts`):
   ajustes, fotos en orden con sus créditos y lo elegido en el Type Lab. Desde «Mis tableros» se abre,
   duplica, renombra o borra. Avisa antes de perder cambios sin guardar y si el navegador no deja guardar.
+- **Rutas de las habitaciones**: además de la portada y el Studio, `#/type-lab` y `#/color-lab` abren cada
+  lab sobre el tablero actual (si no hay tablero, la habitación lo explica y ofrece ir al Studio) y
+  `#/archivo` lista los tableros guardados.
+- **Planta 3D** (opcional): el control «Página | Planta» del encabezado muestra el estudio como una maqueta
+  isométrica (`src/planta/`, three.js). Cada cartel es un botón: lo elige (borde verde y ficha abajo) y
+  «Entrar» o doble clic vuela hasta la habitación y abre su ruta. Escape o «Página» la cierran y vuelven a
+  donde estabas. Toma el par, la paleta y los colores de las fotos del tablero actual. three.js se carga
+  recién al abrirla (chunk aparte); en celulares o equipos chicos baja la calidad, con «reducir
+  movimiento» no hay entrada ni vuelos, y sin WebGL se muestra un plano simple con enlaces.
 - **Modo demo**: si la búsqueda no está conectada, el Studio lo avisa, el botón de buscar queda
   deshabilitado y no se muestra ninguna foto.
 
@@ -129,11 +138,14 @@ Todos los detalles, incluida la publicación paso a paso, están en [`worker/REA
 | `npm run preview` | Sirve la versión armada |
 | `npm run typecheck` | Solo revisa los tipos |
 | `npm run lint` | Revisa el código con oxlint |
-| `npm test` | Tests de la lógica pura (selección, composición, paleta, tipografías, notas) con `node --test` |
+| `npm test` | Tests de la lógica pura (selección, composición, paleta, tipografías, notas, Color Lab, planta) con `node --test` |
 | `npm run deploy` | Arma la web para GitHub Pages y la publica en la rama `gh-pages` (funciona en Windows, macOS y Linux) |
 
 Para publicar con la búsqueda conectada, `npm run deploy` usa la `VITE_SEARCH_API_URL` de
 `.env.production` (versionado).
+
+En desarrollo, `vite.config.ts` pre-empaqueta three.js (`optimizeDeps`) para que abrir la planta no
+recargue la página; en la versión armada three.js queda en el chunk `StudioPlanta3D`, fuera del principal.
 
 En `worker/`: `npm test` (pruebas con Unsplash simulado), `npm run typecheck`, `npm run build`
 (regenera `worker.js`), `npm run dev` y `npm run deploy` (con wrangler).
@@ -142,8 +154,10 @@ En `worker/`: `npm test` (pruebas con Unsplash simulado), `npm run typecheck`, `
 
 ```
 src/
-  App.tsx              router por hash (#/ y #/studio), foco y scroll al cambiar de vista
-  views/               HomeView (portada) y StudioView
+  App.tsx              router por hash (#/, #/studio, #/type-lab, #/color-lab, #/archivo), foco y scroll al cambiar de vista; abre la planta
+  views/               HomeView (portada), StudioView y RoomViews (labs y archivo)
+  planta/              planta 3D: state (lo único en el chunk principal), rooms, engine, textures, materials,
+                       house, furniture, characters, atmosphere, intro, StudioPlanta3D (carga diferida)
   components/moodboard Moodboard, BoardCanvas, Blocks, IncludeDialog, IncludeSwitches, EditPhotosDialog
   components/          Header, Footer, Hero, HeroCanvas, Intro, Cursor, Marquee, Reveal,
                        SectionHeader, CreateButton, HowItWorks, StudioProvider
