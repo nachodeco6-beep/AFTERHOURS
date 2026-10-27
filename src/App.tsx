@@ -9,7 +9,7 @@ import { StudioProvider } from './components/StudioProvider'
 import { scrollToTop, TITLES, useRoute, type RouteId } from './lib/router'
 import { CLOSED, plantaReducer, roomOfRoute, type PlantaAction, type PlantaState } from './planta/state'
 import { HomeView } from './views/HomeView'
-import { ArchivoView, ColorLabView, TypeLabView } from './views/RoomViews'
+import { ColorLabView, LibraryView, TypeLabView } from './views/RoomViews'
 import { StudioView } from './views/StudioView'
 
 // the 3D plan (three.js and the whole scene) loads only when someone opens it
@@ -25,8 +25,8 @@ function View({ route, ready }: { route: RouteId; ready: boolean }) {
       return <TypeLabView />
     case 'color-lab':
       return <ColorLabView />
-    case 'archivo':
-      return <ArchivoView />
+    case 'library':
+      return <LibraryView />
     default:
       return <HomeView ready={ready} />
   }

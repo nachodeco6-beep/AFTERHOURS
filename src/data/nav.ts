@@ -1,4 +1,4 @@
-import type { RouteId } from '../lib/router'
+import type { RouteId } from '../lib/routes.ts'
 
 export interface NavItem {
   route: RouteId
@@ -11,7 +11,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { route: 'home', no: '00', label: 'Inicio', blurb: 'From vision to visual' },
   { route: 'studio', no: '01', label: 'Studio', blurb: 'Escribí una idea y buscá fotografías reales' },
-  { route: 'type-lab', no: '02', label: 'Type Lab', blurb: 'Las tipografías de tu tablero' },
-  { route: 'color-lab', no: '03', label: 'Color Lab', blurb: 'La paleta de tu tablero' },
-  { route: 'archivo', no: '04', label: 'Archivo', blurb: 'Tus tableros guardados' },
+  { route: 'type-lab', no: '02', label: 'Type Lab', blurb: 'Pares tipográficos para inspirarte' },
+  { route: 'color-lab', no: '03', label: 'Color Lab', blurb: 'Paletas para inspirarte' },
+  { route: 'library', no: '04', label: 'Library', blurb: 'Tableros, pares y paletas guardados' },
 ]

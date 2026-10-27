@@ -12,13 +12,13 @@ test('each room leads to its route; the workshop is under construction', () => {
     studio: '#/studio',
     type: '#/type-lab',
     color: '#/color-lab',
-    archivo: '#/archivo',
+    library: '#/library',
     taller: null,
   })
   assert.deepEqual(
     ROOMS.map((r) => [r.id, r.no, r.name]),
     [
-      ['archivo', '04', 'Archivo'],
+      ['library', '04', 'Library'],
       ['hall', '00', 'Hall'],
       ['studio', '01', 'Studio'],
       ['type', '02', 'Type Lab'],
@@ -33,7 +33,7 @@ test('each room leads to its route; the workshop is under construction', () => {
   assert.match(who.studio, /Tomi y Pixel, el gato/)
   assert.match(who.type, /Vera/)
   assert.match(who.color, /Bruno/)
-  assert.match(who.archivo, /Don Ernesto/)
+  assert.equal(who.library, 'Adentro: Don Ernesto, el bibliotecario')
   assert.match(who.taller, /el Tano/)
 })
 
@@ -43,7 +43,8 @@ test('the plan opens on the room of the page you are on', () => {
   assert.equal(roomOfRoute('#/studio'), 'studio')
   assert.equal(roomOfRoute('#/type-lab'), 'type')
   assert.equal(roomOfRoute('#/color-lab/'), 'color')
-  assert.equal(roomOfRoute('#/archivo'), 'archivo')
+  assert.equal(roomOfRoute('#/library'), 'library')
+  assert.equal(roomOfRoute('#/archivo'), 'library', 'the old route still leads to the Library')
   assert.equal(roomOfRoute('#/otra-cosa'), 'studio')
 })
 
@@ -69,11 +70,11 @@ test('inside a room, Escape first flies back out to the whole plan', () => {
 
 test('entering a room goes to its route; the workshop can not be entered', () => {
   const open: PlantaState = { open: true, returnTo: '#/', focused: null }
-  let [s, fx] = plantaReducer(open, { type: 'focus', room: 'archivo' })
-  assert.equal(s.focused, 'archivo')
-  ;[s, fx] = plantaReducer(s, { type: 'entered', room: 'archivo' })
+  let [s, fx] = plantaReducer(open, { type: 'focus', room: 'library' })
+  assert.equal(s.focused, 'library')
+  ;[s, fx] = plantaReducer(s, { type: 'entered', room: 'library' })
   assert.equal(s.open, false)
-  assert.deepEqual(fx, { navigate: '#/archivo' })
+  assert.deepEqual(fx, { navigate: '#/library' })
   ;[s, fx] = plantaReducer(open, { type: 'focus', room: 'taller' })
   assert.equal(s.focused, null)
   ;[s, fx] = plantaReducer(open, { type: 'entered', room: 'taller' })

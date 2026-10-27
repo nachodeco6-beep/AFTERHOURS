@@ -74,6 +74,13 @@ const familyParam = (f: FontSpec) => {
   return f.weight && f.weight !== 400 ? `${name}:wght@${f.weight}` : name
 }
 
+/** Google Fonts css2 URL with every font of the pair, the site's own included: for using it elsewhere. */
+export function publicFontsUrl(pair: TypePair): string {
+  const fonts = [pair.display, pair.text]
+  const unique = fonts.filter((f, i) => fonts.findIndex((o) => familyParam(o) === familyParam(f)) === i)
+  return `https://fonts.googleapis.com/css2?${unique.map((f) => `family=${familyParam(f)}`).join('&')}&display=swap`
+}
+
 /** Google Fonts css2 URL for one font, or null if the site already ships it. */
 export function fontUrl(f: FontSpec): string | null {
   if (SELF_HOSTED.has(f.family)) return null
@@ -157,6 +164,9 @@ export function weightsOf(f: FontSpec): number[] {
 
 /** Headline fonts meant for big sizes only. */
 const DECORATIVE = new Set(['Monoton', 'Bungee', 'Rubik Mono One', 'Permanent Marker', 'UnifrakturMaguntia', 'Pirata One', 'Sedgwick Ave Display', 'Bagel Fat One', 'Rye', 'Limelight', 'Poiret One', 'Amatic SC', 'Syncopate', 'Michroma'])
+
+/** Made for big sizes only (also a script): poor at text sizes. */
+export const isDecorative = (f: FontSpec) => DECORATIVE.has(f.family)
 
 /** Gentle warnings when the combination may be hard to read at small sizes. */
 export function legibilityNotes(pair: TypePair, style: TypeStyle): string[] {

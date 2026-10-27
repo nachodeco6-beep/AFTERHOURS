@@ -328,6 +328,12 @@ export function adjustText(text: string, bg: string, target = 4.5): { hex: strin
   return { hex: best, changed: true, ratio: contrastRatio(best, bg) }
 }
 
+/** The site's background, where the labs show swatches outside the work table. */
+export const PAGE_BG = '#090909'
+
+/** A swatch that barely stands out from what's behind it (e.g. #090909 on the dark page) needs a thin edge. */
+export const needsEdge = (hex: string, behind = PAGE_BG, min = 1.5) => contrastRatio(hex, behind) < min
+
 /** Text colour that reads best on a colour (for the accent button). */
 export const inkOn = (bg: string, options: string[] = ['#090909', '#F1F0E8']) => options.reduce((a, c) => (contrastRatio(c, bg) > contrastRatio(a, bg) ? c : a), options[0])
 

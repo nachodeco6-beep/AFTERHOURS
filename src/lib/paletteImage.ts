@@ -60,3 +60,14 @@ export async function extractPalette(photos: Photo[]): Promise<PaletteResult> {
   }
   return { colors: paletteFromReported(photos.map((p) => p.color)), source: 'unsplash', pool: poolFromReported(photos.map((p) => p.color)) }
 }
+
+/**
+ * Colours of one image of the visitor's own (an object URL): read right here
+ * in the browser, never uploaded. Same extraction as the board's photos.
+ */
+export async function imagePalette(url: string): Promise<{ colors: string[]; pool: PoolColor[] }> {
+  const pixels = await sample(url)
+  const colors = paletteFromPixels([pixels])
+  if (!colors.length) throw new Error('no colours')
+  return { colors, pool: colorPool([pixels]) }
+}

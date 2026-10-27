@@ -81,7 +81,7 @@ export function Header({ route, plantaOpen = false, onPlanta = () => {} }: { rou
               aria-controls="site-menu"
               className="group flex h-10 items-center gap-3 pl-2 text-bone"
             >
-              <span className="label">Menú</span>
+              <span className="label max-[400px]:sr-only">Menú</span>
               <span aria-hidden="true" className="flex w-6 flex-col gap-[5px]">
                 <span className="h-px w-full bg-current transition-transform duration-500 group-hover:scale-x-75" />
                 <span className="h-px w-full origin-right bg-current transition-transform duration-500 group-hover:scale-x-50" />

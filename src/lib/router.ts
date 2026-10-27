@@ -1,40 +1,20 @@
-import { useEffect, useState } from 'react'
-
 /**
  * Minimal hash router: `#/` is the home page, `#/studio` the Studio, plus the
- * labs and the archive (`#/type-lab`, `#/color-lab`, `#/archivo`).
+ * labs and the Library (`#/type-lab`, `#/color-lab`, `#/library`). Routes that
+ * moved (`#/archivo` → `#/library`) are redirected, so old links still work.
  * Hashes that don't start with `#/` are plain in-page anchors and leave the
  * current route alone; unknown routes fall back to home.
  */
-export type RouteId = 'home' | 'studio' | 'type-lab' | 'color-lab' | 'archivo'
+import { useEffect, useState } from 'react'
+import { parseRoute, type RouteId } from './routes'
 
-const PATHS: Record<string, RouteId> = { '/': 'home', '/studio': 'studio', '/type-lab': 'type-lab', '/color-lab': 'color-lab', '/archivo': 'archivo' }
-
-export const TITLES: Record<RouteId, string> = {
-  home: 'AFTERHOURS — From vision to visual',
-  studio: 'Studio — AFTERHOURS',
-  'type-lab': 'Type Lab — AFTERHOURS',
-  'color-lab': 'Color Lab — AFTERHOURS',
-  archivo: 'Mis tableros — AFTERHOURS',
-}
-
-export const routeHref = (route: RouteId) => (route === 'home' ? '#/' : `#/${route}`)
-
-function parse(hash: string): RouteId | 'unknown' | null {
-  if (!hash || hash === '#') return 'home'
-  if (!hash.startsWith('#/')) return null
-  const path = hash.slice(1).replace(/\/+$/, '') || '/'
-  return PATHS[path] ?? 'unknown'
-}
+export { parseRoute, routeHref, TITLES, type RouteId } from './routes'
 
 function resolve(hash: string, current: RouteId): RouteId {
-  const parsed = parse(hash)
+  const parsed = parseRoute(hash)
   if (parsed === null) return current
-  if (parsed === 'unknown') {
-    history.replaceState(null, '', routeHref('home'))
-    return 'home'
-  }
-  return parsed
+  if (parsed.replace) history.replaceState(null, '', parsed.replace)
+  return parsed.route
 }
 
 export function useRoute() {
