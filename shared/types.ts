@@ -1,7 +1,8 @@
 /**
- * Types shared by the search Worker (worker/) and the front end (src/).
- * Type-only: nothing here ends up in either bundle.
+ * Types shared by the Workers (worker/, worker-ai/) and the front end (src/).
+ * Type-only: nothing here ends up in any bundle.
  */
+import type { Mood } from '../src/data/moods.ts'
 
 export interface PhotoUrls {
   /** ~200 px wide */
@@ -61,5 +62,56 @@ export interface ApiErrorBody {
     upstreamStatus?: number
     /** Value of Unsplash's X-Ratelimit-Remaining header, when present */
     rateLimitRemaining?: number
+  }
+}
+
+// ─── AI Worker (worker-ai/) ─────────────────────────────────────────────────
+
+/** Art direction chosen by the model. Mirrors shared/ai/brandbook.schema.json. */
+export interface Brandbook {
+  /** Always the mood of the chosen palette */
+  mood: Mood
+  /** Id of an entry in TYPE_PAIRS */
+  pair_id: number
+  /** Id of an entry in PALETTES */
+  palette_id: string
+  /** 2 to 4 brand phrases in Spanish */
+  concepts: string[]
+  /** 2 to 4 Unsplash searches in English */
+  search_queries: string[]
+  /** 1 to 6 lowercase slugs (web, social, print…) */
+  applications: string[]
+  rationale: string
+}
+
+export interface GenerateRequest {
+  /** The idea in natural language, 3 to 500 characters */
+  concept: string
+}
+
+export interface GenerateResponse {
+  brandbook: Brandbook
+  /** The Gemini model that answered */
+  model: string
+  latency_ms: number
+  tokens_in: number
+  tokens_out: number
+}
+
+export type AiErrorCode =
+  | 'invalid_params'
+  | 'origin_not_allowed'
+  | 'not_found'
+  | 'method_not_allowed'
+  | 'missing_key'
+  | 'ai_invalid_output'
+  | 'ai_unavailable'
+
+export interface AiErrorBody {
+  error: {
+    code: AiErrorCode
+    message: string
+    /** HTTP status Gemini answered with, when the error came from Gemini */
+    upstreamStatus?: number
   }
 }

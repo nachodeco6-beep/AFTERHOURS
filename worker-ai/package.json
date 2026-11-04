@@ -1,0 +1,20 @@
+{
+  "name": "afterhours-ai",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cloudflare Worker that turns a concept into an AFTERHOURS brandbook without exposing the Gemini key.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "4.1.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261023.1",
+    "esbuild": "^0.28.2",
+    "typescript": "~6.0.3",
+    "wrangler": "^4.152.0"
+  }
+}
