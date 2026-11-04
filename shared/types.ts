@@ -93,9 +93,14 @@ export interface GenerateResponse {
   brandbook: Brandbook
   /** The Gemini model that answered */
   model: string
+  /** Only the call that answered: no backoff, no failed attempts */
   latency_ms: number
+  /** All the calls that got a 200, invalid outputs included */
   tokens_in: number
+  /** Everything generated, thoughts included */
   tokens_out: number
+  /** The thoughts part of tokens_out */
+  tokens_thoughts: number
 }
 
 export type AiErrorCode =
@@ -104,6 +109,7 @@ export type AiErrorCode =
   | 'not_found'
   | 'method_not_allowed'
   | 'missing_key'
+  | 'missing_config'
   | 'ai_invalid_output'
   | 'ai_unavailable'
 

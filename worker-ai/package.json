@@ -5,8 +5,10 @@
   "type": "module",
   "description": "Cloudflare Worker that turns a concept into an AFTERHOURS brandbook without exposing the Gemini key.",
   "scripts": {
+    "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "build:test": "esbuild src/index.ts --bundle --format=esm --target=es2022 --loader:.md=text --log-level=warning --outfile=dist/worker.js",
+    "test": "npm run build:test && node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "@cfworker/json-schema": "4.1.4"

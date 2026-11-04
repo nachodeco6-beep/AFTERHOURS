@@ -1,0 +1,31 @@
+name = "afterhours-ai"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+
+# El prompt vive en shared/ai/ como Markdown y entra al Worker como texto.
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = false
+
+[vars]
+# Orígenes que pueden usar el Worker, separados por comas (sin barra al final).
+ALLOWED_ORIGINS = "https://nachodeco6-beep.github.io,http://localhost:5173"
+GEMINI_MODEL = "gemini-3.5-flash"
+# Opcional (D12): modelo para el tercer intento ante 429/5xx/timeout.
+# GEMINI_FALLBACK_MODEL = ""
+
+# Presupuesto total de un pedido, reintentos de D5 y D12 incluidos.
+AI_TIMEOUT_BUDGET_MS = "25000"
+# Tope de cada llamada a Gemini.
+AI_ATTEMPT_TIMEOUT_MS = "15000"
+# Si queda menos que esto, no se lanza otra llamada.
+AI_MIN_ATTEMPT_MS = "3000"
+# Espera antes del reintento n: base * 2^(n-1).
+AI_BACKOFF_BASE_MS = "1000"
+
+# La key de Gemini NO va en este archivo. Se carga como secreto:
+#   npx wrangler secret put GEMINI_API_KEY
+# Para probar en tu compu con «npm run dev», va en worker-ai/.dev.vars
+# (ese archivo está ignorado por git):
+#   GEMINI_API_KEY=tu_key

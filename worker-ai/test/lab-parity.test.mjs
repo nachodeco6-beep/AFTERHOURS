@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { join, resolve } from 'node:path'
 import { PALETTES } from '../../src/data/palettes.ts'
 import { TYPE_PAIRS } from '../../src/data/typePairs.ts'
+import { toGeminiSchema } from '../src/gemini.ts'
 import { renderSystemPrompt } from '../src/prompt.ts'
 import { validateBrandbook } from '../src/validate.ts'
 
@@ -48,6 +49,12 @@ test('the Worker and Python render the same prompt', { skip }, () => {
   const mine = renderSystemPrompt(TEMPLATE, TYPE_PAIRS, PALETTES)
   assert.ok(prompt.length > 10000, `prompt de Python sospechosamente corto: ${prompt.length}`)
   assert.equal(mine, prompt)
+})
+
+test('the Worker and Python send Gemini the same responseSchema', { skip }, () => {
+  const { gemini_schema: lab } = runLab([])
+  assert.equal(lab.properties.palette_id.enum.length, 61, 'schema de Python sospechoso')
+  assert.deepEqual(toGeminiSchema(SCHEMA), lab)
 })
 
 test('the Worker and Python agree on every fixture and edge case', { skip }, () => {
