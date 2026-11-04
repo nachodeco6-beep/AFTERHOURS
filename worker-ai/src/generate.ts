@@ -4,12 +4,15 @@
  * count separately, so a request can make up to 6 calls.
  */
 import type { Brandbook, GenerateResponse } from '../../shared/types.ts'
-import { callGemini } from './gemini.ts'
+import { callGemini, MAX_ATTEMPTS } from './gemini.ts'
 import type { GeminiCall, GeminiRequest, GeminiSettings } from './gemini.ts'
 import { validateBrandbook } from './validate.ts'
 import type { Catalog } from './validate.ts'
 
 const MAX_ROUNDS = 2
+
+/** The most calls one generation can make: what a reservation sets aside on the global cap. */
+export const MAX_CALLS_PER_GENERATION = MAX_ROUNDS * MAX_ATTEMPTS
 
 export interface GenerationSettings extends GeminiSettings {
   budgetMs: number
@@ -17,8 +20,11 @@ export interface GenerationSettings extends GeminiSettings {
 
 export type GenerationFailure = 'ai_invalid_output' | 'ai_unavailable'
 
+/** The quota fields are added once the attempt has been settled. */
+export type GeneratedResponse = Omit<GenerateResponse, 'remaining' | 'resetAt'>
+
 export type GenerationResult =
-  | { ok: true; response: GenerateResponse }
+  | { ok: true; response: GeneratedResponse }
   | { ok: false; code: GenerationFailure; upstreamStatus?: number }
 
 /** One entry per call to Gemini, including the ones of a request that ends in an error. */
@@ -71,7 +77,7 @@ export async function generate(
 
     const checked = checkOutput(reply.text, catalog, schema)
     if ('brandbook' in checked) {
-      const response: GenerateResponse = {
+      const response: GeneratedResponse = {
         brandbook: checked.brandbook,
         model: reply.model,
         latency_ms: reply.latency_ms,

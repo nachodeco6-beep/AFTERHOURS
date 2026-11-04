@@ -1,20 +1,28 @@
 /**
  * AFTERHOURS AI Worker.
  *
- *   POST /generate { concept } -> { brandbook, model, latency_ms, tokens_in, tokens_out, tokens_thoughts }
+ *   POST /generate { concept, clientId, turnstileToken }
+ *     -> { brandbook, model, latency_ms, tokens_in, tokens_out, tokens_thoughts, remaining, resetAt }
+ *   GET /quota?clientId= -> { remaining, resetAt }
  *
- * The Gemini key lives in the GEMINI_API_KEY secret. /generate only answers requests whose
- * Origin is listed in ALLOWED_ORIGINS; `/` is an open status check.
+ * The secrets live in GEMINI_API_KEY, TURNSTILE_SECRET_KEY and IP_HASH_SECRET. Both endpoints only
+ * answer requests whose Origin is listed in ALLOWED_ORIGINS; `/` is an open status check.
  */
 import SCHEMA from '../../shared/ai/brandbook.schema.json'
 import TEMPLATE from '../../shared/ai/brandbook_system_prompt_v4.md'
-import type { AiErrorBody, AiErrorCode } from '../../shared/types.ts'
+import type { AiErrorBody, AiErrorCode, GenerateResponse, QuotaInfo } from '../../shared/types.ts'
 import { PALETTES } from '../../src/data/palettes.ts'
 import { TYPE_PAIRS } from '../../src/data/typePairs.ts'
 import { toGeminiSchema } from './gemini.ts'
-import { generate } from './generate.ts'
+import { generate, MAX_CALLS_PER_GENERATION } from './generate.ts'
 import type { Generation, GenerationSettings } from './generate.ts'
+import { ipKey, isClientId } from './identity.ts'
+import { LimitsClient } from './limits-do.ts'
+import type { Limits, Settlement, Who } from './limits.ts'
 import { renderSystemPrompt } from './prompt.ts'
+import { verifyTurnstile } from './turnstile.ts'
+
+export { LimitsDO } from './limits-do.ts'
 
 export interface Env {
   GEMINI_API_KEY?: string
@@ -25,6 +33,14 @@ export interface Env {
   AI_ATTEMPT_TIMEOUT_MS?: string
   AI_MIN_ATTEMPT_MS?: string
   AI_BACKOFF_BASE_MS?: string
+  AI_MAX_OUTPUT_TOKENS?: string
+  LIMITS?: DurableObjectNamespace
+  FREE_PER_24H?: string
+  IP_PER_DAY?: string
+  GLOBAL_PER_DAY?: string
+  QUOTA_HOLD_MS?: string
+  TURNSTILE_SECRET_KEY?: string
+  IP_HASH_SECRET?: string
 }
 
 const DEFAULT_ORIGINS = ['https://nachodeco6-beep.github.io', 'http://localhost:5173']
@@ -45,8 +61,16 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function fail(code: AiErrorCode, status: number, message: string, extra: { upstreamStatus?: number } = {}): Response {
-  const body: AiErrorBody = { error: { code, message, ...extra } }
+function fail(
+  code: AiErrorCode,
+  status: number,
+  message: string,
+  { upstreamStatus, quota }: { upstreamStatus?: number; quota?: QuotaInfo } = {},
+): Response {
+  const body: AiErrorBody = {
+    error: { code, message, ...(upstreamStatus === undefined ? {} : { upstreamStatus }) },
+    ...quota,
+  }
   return json(body, status)
 }
 
@@ -74,6 +98,9 @@ function positiveInt(raw: string | undefined): number | null {
   return value > 0 ? value : null
 }
 
+const missingNames = (checks: [string, unknown][]): string[] =>
+  checks.filter(([, value]) => value === null).map(([name]) => name)
+
 /** D9: the numbers live in the environment, so there are no defaults to fall back to. */
 function readSettings(env: Env, apiKey: string): GenerationSettings | { missing: string[] } {
   const model = env.GEMINI_MODEL?.trim() || null
@@ -81,28 +108,77 @@ function readSettings(env: Env, apiKey: string): GenerationSettings | { missing:
   const attemptTimeoutMs = positiveInt(env.AI_ATTEMPT_TIMEOUT_MS)
   const minAttemptMs = positiveInt(env.AI_MIN_ATTEMPT_MS)
   const backoffBaseMs = positiveInt(env.AI_BACKOFF_BASE_MS)
-  if (model === null || budgetMs === null || attemptTimeoutMs === null || minAttemptMs === null || backoffBaseMs === null) {
-    const checks: [string, unknown][] = [
-      ['GEMINI_MODEL', model],
-      ['AI_TIMEOUT_BUDGET_MS', budgetMs],
-      ['AI_ATTEMPT_TIMEOUT_MS', attemptTimeoutMs],
-      ['AI_MIN_ATTEMPT_MS', minAttemptMs],
-      ['AI_BACKOFF_BASE_MS', backoffBaseMs],
-    ]
-    return { missing: checks.filter(([, value]) => value === null).map(([name]) => name) }
+  const maxOutputTokens = positiveInt(env.AI_MAX_OUTPUT_TOKENS)
+  if (
+    model === null ||
+    budgetMs === null ||
+    attemptTimeoutMs === null ||
+    minAttemptMs === null ||
+    backoffBaseMs === null ||
+    maxOutputTokens === null
+  ) {
+    return {
+      missing: missingNames([
+        ['GEMINI_MODEL', model],
+        ['AI_TIMEOUT_BUDGET_MS', budgetMs],
+        ['AI_ATTEMPT_TIMEOUT_MS', attemptTimeoutMs],
+        ['AI_MIN_ATTEMPT_MS', minAttemptMs],
+        ['AI_BACKOFF_BASE_MS', backoffBaseMs],
+        ['AI_MAX_OUTPUT_TOKENS', maxOutputTokens],
+      ]),
+    }
   }
   const fallbackModel = env.GEMINI_FALLBACK_MODEL?.trim() || null
-  return { apiKey, model, fallbackModel, budgetMs, attemptTimeoutMs, minAttemptMs, backoffBaseMs }
+  return { apiKey, model, fallbackModel, budgetMs, attemptTimeoutMs, minAttemptMs, backoffBaseMs, maxOutputTokens }
+}
+
+interface LimitsAccess {
+  client: LimitsClient
+  ipSecret: string
+}
+
+/**
+ * A value that can't work counts as broken, so it is reported instead of failing later: a cap
+ * below one generation's worst case would never open, and a hold shorter than the budget would
+ * expire while the generation is still running.
+ */
+function readLimits(env: Env): LimitsAccess | { missing: string[] } {
+  const perClient = positiveInt(env.FREE_PER_24H)
+  const perIp = positiveInt(env.IP_PER_DAY)
+  const rawGlobal = positiveInt(env.GLOBAL_PER_DAY)
+  const globalCalls = rawGlobal !== null && rawGlobal >= MAX_CALLS_PER_GENERATION ? rawGlobal : null
+  const rawHold = positiveInt(env.QUOTA_HOLD_MS)
+  const holdMs = rawHold !== null && rawHold > (positiveInt(env.AI_TIMEOUT_BUDGET_MS) ?? 0) ? rawHold : null
+  const namespace = env.LIMITS ?? null
+  const ipSecret = env.IP_HASH_SECRET?.trim() || null
+  if (perClient === null || perIp === null || globalCalls === null || holdMs === null || namespace === null || ipSecret === null) {
+    return {
+      missing: missingNames([
+        ['FREE_PER_24H', perClient],
+        ['IP_PER_DAY', perIp],
+        ['GLOBAL_PER_DAY', globalCalls],
+        ['QUOTA_HOLD_MS', holdMs],
+        ['LIMITS', namespace],
+        ['IP_HASH_SECRET', ipSecret],
+      ]),
+    }
+  }
+  const limits: Limits = { perClient, perIp, globalCalls, holdMs, callsPerGeneration: MAX_CALLS_PER_GENERATION }
+  return { client: new LimitsClient(namespace, limits), ipSecret }
 }
 
 // ─── Log ────────────────────────────────────────────────────────────────────
 
 /**
- * One line per request that reached Gemini, whatever the outcome: W2's global cap has to
- * count calls and tokens, because failed requests are not charged to the user (D7) but do
- * cost money. Never holds the concept or the key.
+ * One line per request that reached Gemini, whatever the outcome: it is what P2 and P3 calculate
+ * the real cost from. Never holds the concept, the key, the clientId or the IP.
+ *
+ * Tokens: tokens_out already includes tokens_thoughts, which is how it gets billed. In the lab,
+ * tokens_out does not include them, so the comparable number here is tokens_out_no_thoughts.
+ * unmetered_calls are the calls cut off by a timeout or a network error: they report 0 tokens
+ * though they may have spent some, so if it is above 0 the totals are a lower bound.
  */
-function logGeneration({ result, rounds, calls }: Generation, totalMs: number): void {
+function logGeneration({ result, rounds, calls }: Generation, totalMs: number, settlement: Settlement | null): void {
   const sum = (field: 'tokens_in' | 'tokens_out' | 'tokens_thoughts') => calls.reduce((acc, call) => acc + call[field], 0)
   console.log(
     JSON.stringify({
@@ -112,9 +188,13 @@ function logGeneration({ result, rounds, calls }: Generation, totalMs: number): 
       upstream_status: result.ok ? null : (result.upstreamStatus ?? null),
       rounds,
       gemini_calls: calls.length,
+      unmetered_calls: calls.filter((call) => typeof call.outcome !== 'number').length,
       tokens_in: sum('tokens_in'),
       tokens_out: sum('tokens_out'),
       tokens_thoughts: sum('tokens_thoughts'),
+      tokens_out_no_thoughts: sum('tokens_out') - sum('tokens_thoughts'),
+      charged: settlement?.outcome === 'charged',
+      global_calls_today: settlement?.globalCallsToday ?? null,
       total_ms: totalMs,
       calls,
     }),
@@ -123,32 +203,87 @@ function logGeneration({ result, rounds, calls }: Generation, totalMs: number): 
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-/** The trimmed concept, or null if the body doesn't carry a usable one. */
-async function readConcept(request: Request): Promise<string | null> {
-  let body: { concept?: unknown } | null
+interface GenerateBody {
+  concept?: unknown
+  clientId?: unknown
+  turnstileToken?: unknown
+}
+
+async function readBody(request: Request): Promise<GenerateBody | null> {
   try {
-    body = (await request.json()) as { concept?: unknown } | null
+    return (await request.json()) as GenerateBody | null
   } catch {
     return null
   }
-  if (typeof body?.concept !== 'string') return null
+}
+
+/** The trimmed concept, or null if it isn't a usable one. */
+function readConcept(body: GenerateBody): string | null {
+  if (typeof body.concept !== 'string') return null
   const concept = body.concept.trim()
   const length = [...concept].length
   return length >= CONCEPT_MIN && length <= CONCEPT_MAX ? concept : null
 }
 
-async function handleGenerate(request: Request, env: Env): Promise<Response> {
-  const concept = await readConcept(request)
-  if (concept === null) {
-    return fail('invalid_params', 400, `El campo «concept» tiene que ser un texto de entre ${CONCEPT_MIN} y ${CONCEPT_MAX} caracteres.`)
+const CLIENT_ID_MESSAGE = 'El campo «clientId» tiene que ser un UUID.'
+
+async function whoIsAsking(request: Request, clientId: string, ipSecret: string): Promise<Who> {
+  return { clientId, ipKey: await ipKey(request.headers.get('CF-Connecting-IP'), ipSecret) }
+}
+
+/** For answers that refuse the request anyway: without the ledger they just go out without a quota. */
+async function quotaIfAvailable(client: LimitsClient, who: Who): Promise<QuotaInfo | undefined> {
+  try {
+    return await client.peek(who)
+  } catch (error) {
+    console.error('afterhours-ai: no se pudo leer el cupo', error)
+    return undefined
   }
+}
+
+async function handleGenerate(request: Request, env: Env): Promise<Response> {
+  const body = await readBody(request)
+  if (!isClientId(body?.clientId)) return fail('invalid_params', 400, CLIENT_ID_MESSAGE)
 
   const apiKey = env.GEMINI_API_KEY?.trim()
   if (!apiKey) return fail('missing_key', 500, 'Falta cargar el secreto GEMINI_API_KEY en el Worker.')
 
   const settings = readSettings(env, apiKey)
-  if ('missing' in settings) {
-    return fail('missing_config', 500, `Faltan o no son válidas estas variables del Worker: ${settings.missing.join(', ')}.`)
+  const access = readLimits(env)
+  const turnstileSecret = env.TURNSTILE_SECRET_KEY?.trim() || null
+  if ('missing' in settings || 'missing' in access || turnstileSecret === null) {
+    const missing = [
+      ...('missing' in settings ? settings.missing : []),
+      ...('missing' in access ? access.missing : []),
+      ...(turnstileSecret === null ? ['TURNSTILE_SECRET_KEY'] : []),
+    ]
+    return fail('missing_config', 500, `Faltan o no son válidas estas variables del Worker: ${missing.join(', ')}.`)
+  }
+
+  const { client } = access
+  const who = await whoIsAsking(request, body.clientId, access.ipSecret)
+
+  const concept = readConcept(body)
+  if (concept === null) {
+    return fail('invalid_params', 400, `El campo «concept» tiene que ser un texto de entre ${CONCEPT_MIN} y ${CONCEPT_MAX} caracteres.`, {
+      quota: await quotaIfAvailable(client, who),
+    })
+  }
+
+  const captcha = await verifyTurnstile(body.turnstileToken, turnstileSecret, request.headers.get('CF-Connecting-IP'))
+  if (!captcha.ok) {
+    console.error(JSON.stringify({ event: 'captcha_failed', reason: captcha.reason }))
+    return fail('captcha_failed', 403, 'No pudimos verificar que sos una persona. Probá de nuevo.', {
+      quota: await quotaIfAvailable(client, who),
+    })
+  }
+
+  // If the ledger fails this throws, on purpose: without it, Gemini is not called.
+  const reservation = await client.reserve(who)
+  if (!reservation.ok) {
+    return reservation.code === 'global_limit'
+      ? fail('global_limit', 429, 'La IA llegó a su límite de hoy. La app sigue funcionando en modo clásico.', { quota: reservation.quota })
+      : fail('quota_exceeded', 429, 'Ya usaste tus intentos de IA por ahora. La app sigue funcionando en modo clásico.', { quota: reservation.quota })
   }
 
   const started = Date.now()
@@ -158,15 +293,44 @@ async function handleGenerate(request: Request, env: Env): Promise<Response> {
     CATALOG,
     SCHEMA,
   )
-  logGeneration(generation, Date.now() - started)
+  const totalMs = Date.now() - started
 
-  const { result } = generation
-  if (result.ok) return json(result.response)
-  if (result.code === 'ai_invalid_output') {
-    return fail('ai_invalid_output', 502, 'La IA devolvió una propuesta que no pasó la validación. Probá de nuevo.')
+  // Before answering, so a valid brandbook never leaves without being charged. If it fails, the
+  // brandbook still goes out, because Gemini is already paid for. The hold will expire without
+  // charging the user and leave the worst case counted, which is what `reservation.quota` says for now.
+  const { result, calls } = generation
+  let settlement: Settlement | null = null
+  try {
+    settlement = await client.settle(reservation.holdId, who, { valid: result.ok, calls: calls.length })
+  } catch (error) {
+    console.error('afterhours-ai: no se pudo cerrar la reserva', error)
   }
-  const extra = result.upstreamStatus === undefined ? {} : { upstreamStatus: result.upstreamStatus }
-  return fail('ai_unavailable', 503, 'La IA no está disponible en este momento. Probá de nuevo en unos minutos.', extra)
+  logGeneration(generation, totalMs, settlement)
+  const quota = settlement?.quota ?? reservation.quota
+
+  if (result.ok) {
+    const response: GenerateResponse = { ...result.response, ...quota }
+    return json(response)
+  }
+  if (result.code === 'ai_invalid_output') {
+    return fail('ai_invalid_output', 502, 'La IA devolvió una propuesta que no pasó la validación. Probá de nuevo.', { quota })
+  }
+  return fail('ai_unavailable', 503, 'La IA no está disponible en este momento. Probá de nuevo en unos minutos.', {
+    upstreamStatus: result.upstreamStatus,
+    quota,
+  })
+}
+
+async function handleQuota(request: Request, url: URL, env: Env): Promise<Response> {
+  const clientId = url.searchParams.get('clientId')
+  if (!isClientId(clientId)) return fail('invalid_params', 400, CLIENT_ID_MESSAGE)
+
+  const access = readLimits(env)
+  if ('missing' in access) {
+    return fail('missing_config', 500, `Faltan o no son válidas estas variables del Worker: ${access.missing.join(', ')}.`)
+  }
+  const quota: QuotaInfo = await access.client.peek(await whoIsAsking(request, clientId, access.ipSecret))
+  return json(quota)
 }
 
 // ─── Entry point ────────────────────────────────────────────────────────────
@@ -183,7 +347,7 @@ export default {
         service: 'afterhours-ai',
         ok: true,
         keyConfigured: Boolean(env.GEMINI_API_KEY?.trim()),
-        endpoints: ['/generate'],
+        endpoints: ['/generate', '/quota'],
       })
       return withCors(status, allowed ? origin : null)
     }
@@ -205,7 +369,7 @@ export default {
         new Response(null, {
           status: 204,
           headers: {
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '86400',
           },
@@ -216,9 +380,13 @@ export default {
 
     let response: Response
     try {
-      if (url.pathname !== '/generate') response = fail('not_found', 404, 'Esta dirección no existe. Usá /generate.')
-      else if (request.method !== 'POST') response = fail('method_not_allowed', 405, 'Solo se aceptan pedidos POST.')
-      else response = await handleGenerate(request, env)
+      if (url.pathname === '/generate') {
+        response = request.method === 'POST' ? await handleGenerate(request, env) : fail('method_not_allowed', 405, 'Solo se aceptan pedidos POST.')
+      } else if (url.pathname === '/quota') {
+        response = request.method === 'GET' ? await handleQuota(request, url, env) : fail('method_not_allowed', 405, 'Solo se aceptan pedidos GET.')
+      } else {
+        response = fail('not_found', 404, 'Esta dirección no existe. Usá /generate o /quota.')
+      }
     } catch (error) {
       console.error('afterhours-ai: error inesperado', error)
       response = fail('ai_unavailable', 500, 'Algo falló dentro del Worker.')

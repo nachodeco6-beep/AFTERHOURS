@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, test } from 'node:test'
 import { PALETTES } from '../../src/data/palettes.ts'
 import { TYPE_PAIRS } from '../../src/data/typePairs.ts'
-import worker from '../dist/worker.js'
+import worker, { LimitsDO } from '../dist/worker.js'
 import { toGeminiSchema } from '../src/gemini.ts'
 import { renderSystemPrompt } from '../src/prompt.ts'
+import { limitsNamespace } from './support/sqlite-do.mjs'
 
 const TEMPLATE = readFileSync(new URL('../../shared/ai/brandbook_system_prompt_v4.md', import.meta.url), 'utf8')
 const SCHEMA = JSON.parse(readFileSync(new URL('../../shared/ai/brandbook.schema.json', import.meta.url), 'utf8'))
@@ -16,6 +17,10 @@ const SCHEMA = JSON.parse(readFileSync(new URL('../../shared/ai/brandbook.schema
 const ORIGIN = 'http://localhost:5173'
 const KEY = 'test-key-no-real'
 const CONCEPT = 'Una cafetería brutalista junto al mar'
+const CLIENT_ID = '11111111-1111-4111-8111-111111111111'
+const TOKEN = 'token-de-prueba'
+const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
+// Limits far from being reached: test/quota.test.mjs is the one that tests them.
 const ENV = {
   GEMINI_API_KEY: KEY,
   GEMINI_MODEL: 'model-main',
@@ -24,6 +29,13 @@ const ENV = {
   AI_ATTEMPT_TIMEOUT_MS: '1000',
   AI_MIN_ATTEMPT_MS: '5',
   AI_BACKOFF_BASE_MS: '1',
+  AI_MAX_OUTPUT_TOKENS: '4096',
+  FREE_PER_24H: '100000',
+  IP_PER_DAY: '100000',
+  GLOBAL_PER_DAY: '1000000',
+  QUOTA_HOLD_MS: '10000',
+  TURNSTILE_SECRET_KEY: 'turnstile-secret-no-real',
+  IP_HASH_SECRET: 'ip-secret-no-real',
 }
 
 const BOOK = {
@@ -47,6 +59,7 @@ let errors = []
 function mockGemini(...steps) {
   calls = []
   globalThis.fetch = async (input, init) => {
+    if (String(input) === SITEVERIFY_URL) return Response.json({ success: true })
     const call = { url: String(input), headers: new Headers(init?.headers), body: JSON.parse(init.body), signal: init.signal }
     calls.push(call)
     const step = steps[calls.length - 1]
@@ -74,6 +87,7 @@ const networkError = () => () => {
 }
 
 beforeEach(() => {
+  ENV.LIMITS = limitsNamespace(LimitsDO, Date.now)
   logs = []
   errors = []
   console.log = (...args) => logs.push(args.join(' '))
@@ -87,7 +101,8 @@ afterEach(() => {
 
 const send = (body, { env = ENV, headers = { Origin: ORIGIN }, path = '/generate', method = 'POST' } = {}) =>
   worker.fetch(new Request(`https://w.example${path}`, { method, headers, ...(body === undefined ? {} : { body }) }), env)
-const generate = (env = ENV) => send(JSON.stringify({ concept: CONCEPT }), { env })
+const request = (fields = {}) => JSON.stringify({ concept: CONCEPT, clientId: CLIENT_ID, turnstileToken: TOKEN, ...fields })
+const generate = (env = ENV) => send(request(), { env })
 const lastLog = () => {
   assert.equal(logs.length, 1, `se esperaba una línea de log: ${logs.join('\n')}`)
   return JSON.parse(logs[0])
@@ -115,7 +130,7 @@ test('a valid output comes back with its metrics', async () => {
   assert.equal(body.tokens_out, 27, 'candidates + thoughts')
   assert.equal(body.tokens_thoughts, 7)
   assert.equal(typeof body.latency_ms, 'number')
-  assert.deepEqual(Object.keys(body).sort(), ['brandbook', 'latency_ms', 'model', 'tokens_in', 'tokens_out', 'tokens_thoughts'])
+  assert.deepEqual(Object.keys(body).sort(), ['brandbook', 'latency_ms', 'model', 'remaining', 'resetAt', 'tokens_in', 'tokens_out', 'tokens_thoughts'])
 })
 
 test('the request carries the real prompt, schema and settings, and the key only in the header', async () => {
@@ -133,11 +148,18 @@ test('the request carries the real prompt, schema and settings, and the key only
   assert.equal(call.body.generationConfig.responseMimeType, 'application/json')
   assert.equal(call.body.generationConfig.temperature, 0.2)
   assert.deepEqual(call.body.generationConfig.responseSchema, toGeminiSchema(SCHEMA))
+  assert.equal(call.body.generationConfig.maxOutputTokens, 4096)
+})
+
+test('the output ceiling that goes to Gemini is the configured one, on every call', async () => {
+  mockGemini(status(503), invalid(), valid())
+  await generate({ ...ENV, AI_MAX_OUTPUT_TOKENS: '1234' })
+  assert.deepEqual(calls.map((c) => c.body.generationConfig.maxOutputTokens), [1234, 1234, 1234])
 })
 
 test('the concept goes out trimmed', async () => {
   mockGemini(valid())
-  await send(JSON.stringify({ concept: `  ${CONCEPT}\n` }))
+  await send(request({ concept: `  ${CONCEPT}\n` }))
   assert.equal(calls[0].body.contents[0].parts[0].text, CONCEPT)
 })
 
@@ -154,7 +176,7 @@ test('text split across parts is joined, and thoughts are left out', async () =>
 
 test('origins outside ALLOWED_ORIGINS are refused', async () => {
   mockGemini()
-  const res = await send(JSON.stringify({ concept: CONCEPT }), { headers: { Origin: 'https://evil.example' } })
+  const res = await send(request(), { headers: { Origin: 'https://evil.example' } })
   await assertError(res, 403, 'origin_not_allowed')
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), null)
   assert.equal(calls.length, 0)
@@ -162,7 +184,7 @@ test('origins outside ALLOWED_ORIGINS are refused', async () => {
 
 test('requests without Origin are refused, preflight included', async () => {
   mockGemini()
-  await assertError(await send(JSON.stringify({ concept: CONCEPT }), { headers: {} }), 403, 'origin_not_allowed')
+  await assertError(await send(request(), { headers: {} }), 403, 'origin_not_allowed')
   await assertError(await send(undefined, { headers: {}, method: 'OPTIONS' }), 403, 'origin_not_allowed')
   assert.equal(calls.length, 0)
 })
@@ -179,6 +201,7 @@ test('preflight answers allowed origins', async () => {
   assert.equal(res.status, 204)
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), ORIGIN)
   assert.match(res.headers.get('Access-Control-Allow-Methods'), /POST/)
+  assert.match(res.headers.get('Access-Control-Allow-Methods'), /GET/)
   assert.match(res.headers.get('Access-Control-Allow-Headers'), /Content-Type/)
 })
 
@@ -187,7 +210,7 @@ test('unknown paths and methods', async () => {
   const notFound = await send(undefined, { path: '/nope', method: 'GET' })
   assert.equal(notFound.headers.get('Access-Control-Allow-Origin'), ORIGIN)
   await assertError(notFound, 404, 'not_found')
-  await assertError(await send(JSON.stringify({ concept: CONCEPT }), { path: '/nope' }), 404, 'not_found')
+  await assertError(await send(request(), { path: '/nope' }), 404, 'not_found')
   await assertError(await send(undefined, { method: 'GET' }), 405, 'method_not_allowed')
   assert.equal(calls.length, 0)
 })
@@ -202,6 +225,7 @@ test('the status check is open and never shows the key', async () => {
   const body = JSON.parse(text)
   assert.equal(body.service, 'afterhours-ai')
   assert.equal(body.keyConfigured, true)
+  assert.deepEqual(body.endpoints, ['/generate', '/quota'])
 
   const noKey = await send(undefined, { path: '/', method: 'GET', env: { ...ENV, GEMINI_API_KEY: ' ' } })
   assert.equal(noKey.headers.get('Access-Control-Allow-Origin'), ORIGIN)
@@ -216,13 +240,13 @@ test('the status check is open and never shows the key', async () => {
 test('the concept is validated', async () => {
   mockGemini()
   const bad = {
-    'concepto vacío': JSON.stringify({ concept: '' }),
-    'solo espacios': JSON.stringify({ concept: '     ' }),
-    '2 caracteres': JSON.stringify({ concept: 'ab' }),
-    '2 caracteres con espacios alrededor': JSON.stringify({ concept: '  ab  ' }),
-    '501 caracteres': JSON.stringify({ concept: 'a'.repeat(501) }),
-    'no es un string': JSON.stringify({ concept: 123 }),
-    'sin el campo': JSON.stringify({ idea: CONCEPT }),
+    'concepto vacío': request({ concept: '' }),
+    'solo espacios': request({ concept: '     ' }),
+    '2 caracteres': request({ concept: 'ab' }),
+    '2 caracteres con espacios alrededor': request({ concept: '  ab  ' }),
+    '501 caracteres': request({ concept: 'a'.repeat(501) }),
+    'no es un string': request({ concept: 123 }),
+    'sin el campo': request({ concept: undefined, idea: CONCEPT }),
     'body null': 'null',
     'body que no es JSON': 'hola',
     'body vacío': '',
@@ -238,7 +262,7 @@ test('the concept is validated', async () => {
 test('the concept limits are inclusive and count characters, not UTF-16 units', async () => {
   for (const concept of ['abc', 'a'.repeat(500), '🙂'.repeat(500)]) {
     mockGemini(valid())
-    assert.equal((await send(JSON.stringify({ concept }))).status, 200, `${[...concept].length} caracteres`)
+    assert.equal((await send(request({ concept }))).status, 200, `${[...concept].length} caracteres`)
     assert.equal(calls.length, 1)
   }
 })
@@ -253,7 +277,10 @@ test('a missing key is reported clearly, without calling Gemini', async () => {
 
 test('a missing or broken variable is reported by name, with no hidden default (D9)', async () => {
   mockGemini()
-  const names = ['GEMINI_MODEL', 'AI_TIMEOUT_BUDGET_MS', 'AI_ATTEMPT_TIMEOUT_MS', 'AI_MIN_ATTEMPT_MS', 'AI_BACKOFF_BASE_MS']
+  const names = [
+    'GEMINI_MODEL', 'AI_TIMEOUT_BUDGET_MS', 'AI_ATTEMPT_TIMEOUT_MS', 'AI_MIN_ATTEMPT_MS', 'AI_BACKOFF_BASE_MS', 'AI_MAX_OUTPUT_TOKENS',
+    'FREE_PER_24H', 'IP_PER_DAY', 'GLOBAL_PER_DAY', 'QUOTA_HOLD_MS',
+  ]
   for (const name of names) {
     const broken = name === 'GEMINI_MODEL' ? [undefined, ' '] : [undefined, '', 'abc', '0', '-5', '1.5']
     for (const value of broken) {
@@ -275,7 +302,7 @@ test('an unexpected error is logged and answered in the common format', async ()
       throw new Error('fallo de prueba')
     },
   }
-  const res = await send(JSON.stringify({ concept: CONCEPT }), { env })
+  const res = await send(request(), { env })
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), ORIGIN)
   await assertError(res, 500, 'ai_unavailable')
   assert.equal(errors.length, 1)
@@ -549,7 +576,7 @@ test('the log records every attempt with its own latency and model', async () =>
 
 test('requests rejected before reaching Gemini leave no generation in the log', async () => {
   mockGemini()
-  await send(JSON.stringify({ concept: '' }))
+  await send(request({ concept: '' }))
   assert.deepEqual(logs, [])
 })
 

@@ -23,9 +23,39 @@ AI_ATTEMPT_TIMEOUT_MS = "15000"
 AI_MIN_ATTEMPT_MS = "3000"
 # Espera antes del reintento n: base * 2^(n-1).
 AI_BACKOFF_BASE_MS = "1000"
+# Techo de lo que puede generar una llamada: se manda a Gemini como maxOutputTokens.
+AI_MAX_OUTPUT_TOKENS = "4096"
 
-# La key de Gemini NO va en este archivo. Se carga como secreto:
+# Límites (D6, D9). Estos valores son de DESARROLLO; los definitivos salen de P2.
+# Generaciones válidas por navegador, en ventana móvil de 24 h.
+FREE_PER_24H = "3"
+# Generaciones válidas por IP, en ventana móvil de 24 h.
+IP_PER_DAY = "10"
+# LLAMADAS a Gemini por día UTC, no generaciones: cuentan las válidas, las inválidas, los 429/5xx
+# y los timeouts. Cada pedido aparta 6 (el peor caso) y devuelve las que no usó. Mínimo: 6.
+GLOBAL_PER_DAY = "60"
+# Cuánto dura una reserva si nadie la cierra. Tiene que ser mayor que AI_TIMEOUT_BUDGET_MS.
+QUOTA_HOLD_MS = "35000"
+
+# Los contadores: un solo Durable Object con SQLite (D17).
+[[durable_objects.bindings]]
+name = "LIMITS"
+class_name = "LimitsDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LimitsDO"]
+
+# La línea de log de cada generación tiene los tokens para calcular el costo (P2, P3).
+[observability]
+enabled = true
+
+# Los secretos NO van en este archivo. Se cargan con:
 #   npx wrangler secret put GEMINI_API_KEY
-# Para probar en tu compu con «npm run dev», va en worker-ai/.dev.vars
+#   npx wrangler secret put TURNSTILE_SECRET_KEY
+#   npx wrangler secret put IP_HASH_SECRET
+# Para probar en tu compu con «npm run dev», van en worker-ai/.dev.vars
 # (ese archivo está ignorado por git):
 #   GEMINI_API_KEY=tu_key
+#   TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA   (clave de prueba oficial: siempre pasa)
+#   IP_HASH_SECRET=cualquier_texto_largo_al_azar

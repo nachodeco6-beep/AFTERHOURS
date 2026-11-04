@@ -87,9 +87,21 @@ export interface Brandbook {
 export interface GenerateRequest {
   /** The idea in natural language, 3 to 500 characters */
   concept: string
+  /** Random UUID the web generates once and keeps in localStorage */
+  clientId: string
+  /** Turnstile token. Single use and valid for 300 s: every request needs a new one, retries too */
+  turnstileToken: string
 }
 
-export interface GenerateResponse {
+/** What GET /quota answers, and what /generate adds to its answers */
+export interface QuotaInfo {
+  /** Generations left right now: the browser's, the IP's, and 0 if the global cap is closed */
+  remaining: number
+  /** ISO in UTC: when the next attempt comes back. Null if the quota is full */
+  resetAt: string | null
+}
+
+export interface GenerateResponse extends QuotaInfo {
   brandbook: Brandbook
   /** The Gemini model that answered */
   model: string
@@ -97,9 +109,9 @@ export interface GenerateResponse {
   latency_ms: number
   /** All the calls that got a 200, invalid outputs included */
   tokens_in: number
-  /** Everything generated, thoughts included */
+  /** Everything generated, thoughts included. The lab's tokens_out is tokens_out - tokens_thoughts */
   tokens_out: number
-  /** The thoughts part of tokens_out */
+  /** The thoughts part of tokens_out: already counted there, don't add them */
   tokens_thoughts: number
 }
 
@@ -112,8 +124,12 @@ export type AiErrorCode =
   | 'missing_config'
   | 'ai_invalid_output'
   | 'ai_unavailable'
+  | 'captcha_failed'
+  | 'quota_exceeded'
+  | 'global_limit'
 
-export interface AiErrorBody {
+/** The quota fields are missing only when it can't be known: no valid clientId, or the Worker misconfigured or failing */
+export interface AiErrorBody extends Partial<QuotaInfo> {
   error: {
     code: AiErrorCode
     message: string

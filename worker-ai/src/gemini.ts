@@ -5,7 +5,7 @@
  */
 
 const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models'
-const MAX_ATTEMPTS = 3
+export const MAX_ATTEMPTS = 3
 const TEMPERATURE = 0.2
 
 // Keys the Gemini API rejects in responseSchema. Same list as run_benchmark.py.
@@ -41,6 +41,8 @@ export interface GeminiSettings {
   attemptTimeoutMs: number
   minAttemptMs: number
   backoffBaseMs: number
+  /** Gemini's maxOutputTokens: the ceiling on what one call can generate */
+  maxOutputTokens: number
 }
 
 export interface GeminiRequest {
@@ -104,7 +106,7 @@ function readEnvelope(raw: string): { text: string; usage: TokenUsage } {
 }
 
 /** The timeout covers the body too: headers can arrive and the body hang. */
-async function postOnce(url: string, init: RequestInit, signal: AbortSignal): Promise<{ status: number; raw: string }> {
+export async function postOnce(url: string, init: RequestInit, signal: AbortSignal): Promise<{ status: number; raw: string }> {
   const aborted = new Promise<never>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true })
   })
@@ -135,6 +137,7 @@ export async function callGemini(
       responseMimeType: 'application/json',
       responseSchema: request.responseSchema,
       temperature: TEMPERATURE,
+      maxOutputTokens: settings.maxOutputTokens,
     },
   })
 
