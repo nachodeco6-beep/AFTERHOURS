@@ -14,6 +14,7 @@ test('an IPv4 is its own bucket', () => {
   assert.equal(ipBucket('203.0.113.7'), '203.0.113.7')
   assert.equal(ipBucket(' 203.0.113.7 '), '203.0.113.7')
   assert.equal(ipBucket('::ffff:203.0.113.7'), '203.0.113.7', 'la misma IPv4 escrita como IPv6')
+  assert.equal(ipBucket('::FFFF:203.0.113.7'), '203.0.113.7', 'también en mayúsculas')
 })
 
 test('IPv6 addresses of the same /64 share a bucket, however they are written', () => {

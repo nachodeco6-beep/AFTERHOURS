@@ -236,6 +236,10 @@ test('a browser with its quota full on a busy IP reports a full quota', () => {
   const { ledger, spend } = setup()
   spend({ clientId: 'otro', ipKey: 'red' })
   assert.deepEqual(ledger.peek({ clientId: 'yo', ipKey: 'red' }, LIMITS), { remaining: 3, resetAt: null })
+
+  // The IP has exactly as many left as the browser: nothing that frees up there can raise `remaining`.
+  const limits = { ...LIMITS, perIp: 4 }
+  assert.deepEqual(ledger.peek({ clientId: 'yo', ipKey: 'red' }, limits), { remaining: 3, resetAt: null })
 })
 
 test('lowering a limit below what is already used does not break the count', () => {

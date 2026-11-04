@@ -406,6 +406,17 @@ test('the reason a captcha failed is logged, without the token or the secret', a
   assert.equal(generationLogs().length, 0, 'no llegó a Gemini: no es una generación')
 })
 
+test('the log tells an answer that is not a 200 from one that can not be read', async () => {
+  siteverifyStep = () => new Response('{}', { status: 500 })
+  await ask()
+  assert.match(errors.join('\n'), /"reason":"http-500"/)
+
+  errors = []
+  siteverifyStep = () => new Response('<html>', { status: 200 })
+  await ask()
+  assert.match(errors.join('\n'), /"reason":"unreadable-reply"/)
+})
+
 test('the captcha is not spent when the configuration is broken', async () => {
   const { TURNSTILE_SECRET_KEY: _, ...withoutSecret } = env
   const res = await ask({}, { useEnv: withoutSecret })
@@ -529,9 +540,12 @@ test('/quota with the ledger down is an error, not a made-up number', async () =
 })
 
 test('an answer from the ledger that is not OK counts as failing', async () => {
-  env.LIMITS = { idFromName: (name) => name, get: () => ({ fetch: async () => new Response('roto', { status: 500 }) }) }
+  // Readable and shaped like a reservation, so only the status can stop it.
+  const body = { ok: true, holdId: 'x', quota: { remaining: 3, resetAt: null } }
+  env.LIMITS = { idFromName: (name) => name, get: () => ({ fetch: async () => Response.json(body, { status: 500 }) }) }
   await assertRefused(await ask(), 500, 'ai_unavailable')
   assert.equal(geminiCalls.length, 0)
+  assert.match(errors.join('\n'), /LimitsDO respondió 500/)
 })
 
 test('a refused captcha still answers when the ledger is down, without a quota', async () => {
