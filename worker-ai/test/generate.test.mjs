@@ -206,6 +206,10 @@ test('the status check is open and never shows the key', async () => {
   const noKey = await send(undefined, { path: '/', method: 'GET', env: { ...ENV, GEMINI_API_KEY: ' ' } })
   assert.equal(noKey.headers.get('Access-Control-Allow-Origin'), ORIGIN)
   assert.equal((await noKey.json()).keyConfigured, false)
+
+  const evil = await send(undefined, { path: '/', method: 'GET', headers: { Origin: 'https://evil.example' } })
+  assert.equal(evil.status, 200, 'sigue abierto')
+  assert.equal(evil.headers.get('Access-Control-Allow-Origin'), null, 'pero sin CORS para un origen ajeno')
   assert.equal(calls.length, 0)
 })
 
@@ -425,6 +429,13 @@ test('D12: other 4xx are not retried and Gemini\'s body is not forwarded', async
     assert.ok(!logs.join('\n').includes('SECRETO-DEL-CUERPO-DE-GEMINI'))
     assert.equal(calls.length, 1, String(code))
   }
+})
+
+test('D12: the body of an error is not read, so one that hangs does not spend the attempt timeout', async () => {
+  mockGemini(() => new Response(new ReadableStream({ start() {} }), { status: 503 }), valid())
+  const res = await generate({ ...ENV, AI_ATTEMPT_TIMEOUT_MS: '100' })
+  assert.equal(res.status, 200)
+  assert.equal(lastLog().calls[0].outcome, 503)
 })
 
 test('D12: the fallback model is used on the third attempt only', async () => {
