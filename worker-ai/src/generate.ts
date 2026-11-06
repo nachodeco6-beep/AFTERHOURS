@@ -47,14 +47,14 @@ const ruleNames = (errors: string[]): string[] => [...new Set(errors.map((e) => 
 
 type CheckedOutput = { brandbook: Brandbook } | { fuera_de_tema: true } | { invalid: string[] }
 
-function checkOutput(text: string, catalog: Catalog, schema: object): CheckedOutput {
+function checkOutput(text: string, concept: string, catalog: Catalog, schema: object): CheckedOutput {
   let doc: unknown
   try {
     doc = JSON.parse(text)
   } catch {
     return { invalid: ['json'] }
   }
-  const { valid, errors } = validateBrandbook(doc, catalog, schema)
+  const { valid, errors } = validateBrandbook(doc, catalog, schema, concept)
   if (!valid) return { invalid: ruleNames(errors) }
   return 'fuera_de_tema' in (doc as object) ? { fuera_de_tema: true } : { brandbook: doc as Brandbook }
 }
@@ -80,7 +80,7 @@ export async function generate(
     totals.tokens_out += reply.usage.tokens_out
     totals.tokens_thoughts += reply.usage.tokens_thoughts
 
-    const checked = checkOutput(reply.text, catalog, schema)
+    const checked = checkOutput(reply.text, request.concept, catalog, schema)
     if (!('invalid' in checked)) {
       const response: GeneratedResponse = {
         ...checked,

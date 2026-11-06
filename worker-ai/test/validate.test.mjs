@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import { MOODS } from '../../src/data/moods.ts'
 import { PALETTES } from '../../src/data/palettes.ts'
 import { TYPE_PAIRS } from '../../src/data/typePairs.ts'
-import { validateBrandbook } from '../src/validate.ts'
+import { notEnglishReason, validateBrandbook } from '../src/validate.ts'
 
 const SCHEMA = JSON.parse(readFileSync(new URL('../../shared/ai/brandbook.schema.json', import.meta.url), 'utf8'))
 const CATALOG = { pairs: TYPE_PAIRS, palettes: PALETTES }
@@ -29,6 +29,75 @@ function assertInvalid(doc, expected, catalog) {
   assert.equal(valid, false, `tenía que ser inválido: ${JSON.stringify(doc)}`)
   assert.ok(errors.some((e) => expected.test(e)), `se esperaba ${expected}, llegó: ${JSON.stringify(errors)}`)
 }
+
+const SKATERS = 'Marca de remeras y buzos de Mar del Plata hecha por skaters. Serigrafía propia, drops limitados, estética de fotocopia.'
+const BODEGA = 'Bodega boutique en el Valle de Uco. Vinos de alta gama, producción chica, visitas solo con reserva.'
+const FESTIVAL = 'Festival de música electrónica experimental en una fábrica abandonada de Rosario. Tres días, público artístico.'
+const AMBOS = 'Viajes de Mar del Plata al Valle de Uco'
+
+const NAMED_PASSES = [
+  ['Mar del Plata beach skate', SKATERS],
+  ['urban skate spot mar del plata', SKATERS.toUpperCase()],
+  ['Mar del Plata calle', SKATERS], // calle is not on the list: telling it apart would need a dictionary
+  ['Valle de Uco vineyard', BODEGA],
+  ['Bodegon de Nandu bar', 'Bodegón de Ñandú'],
+  ['Mar del Plata Valle de Uco wine', AMBOS],
+  ['skate park mar del plata', 'skate park de mar del plata'],
+  ['Mar  del\tPlata pier', 'Mar del\nPlata'],
+  ['mar del plata, pier', 'Hecha en Mar, del Plata.'],
+]
+const NAMED_REJECTED = [
+  ['mar del plata', SKATERS.toUpperCase(), 'del'], // the run is the whole query
+  ['luz de la calle', 'Bar con luz de la calle', 'de, la'],
+  ['Mar del Plata en la calle', SKATERS, 'del, en, la'],
+  ['Mar del Plata de noche', SKATERS, 'de, del'],
+  ['beach de noche', 'Bar abierto de noche', 'de'], // the run starts on the list
+  ['La Boca street art', 'Bar en La Boca', 'la'], // same shape as "de noche"; Santino's decision
+  ['vinos de noche', BODEGA, 'de'], // the run ends on the list
+  ['luz en una noche', FESTIVAL, 'en, una'], // the run is all listed words
+  ['mar del plata pier', 'Marmar del Platanos', 'del'], // whole words, not a substring
+  ['Mar del Plata Valle de Uco', AMBOS, 'de, del'], // nothing left outside
+  ['Mar del Plata beach', 'Bar de Mar y del Plata', 'del'], // not next to each other
+  ['urban mar del plata', 'Bar de Tandil', 'del'],
+]
+// Really rejected in W2e (records in resultados_errores/w2e_humo and w2e_tokens), with their concept.
+const W2E_QUERIES = ['Mar del Plata beach skate', 'Mar del Plata pier skate', 'urban skate spot mar del plata', 'Mar del Plata pier sunset', 'Mar del Plata pier graffiti']
+
+test('a Spanish word inside a name the concept already has does not count', () => {
+  for (const [query, concept] of NAMED_PASSES) assert.equal(notEnglishReason(query, concept), null, query)
+  for (const query of W2E_QUERIES) assert.equal(notEnglishReason(query, SKATERS), null, query)
+})
+
+test('anything else is rejected with the same message as without a concept', () => {
+  for (const [query, concept, words] of NAMED_REJECTED) {
+    const expected = `contiene palabras del espanol: ${words}`
+    assert.equal(notEnglishReason(query, concept), expected, query)
+    assert.equal(notEnglishReason(query), expected, query)
+  }
+})
+
+test('without a concept nothing is excused', () => {
+  for (const [query] of NAMED_PASSES) {
+    assert.match(notEnglishReason(query), /^contiene palabras del espanol/, query)
+    assert.match(notEnglishReason(query, ''), /^contiene palabras del espanol/, query)
+  }
+})
+
+test('the other language rules do not look at the concept', () => {
+  assert.match(notEnglishReason('Bodegón de Ñandú bar', 'Bodegón de Ñandú'), /no ASCII/)
+  assert.equal(notEnglishReason('1234', '1234 de 1234'), 'no tiene letras')
+  assert.equal(notEnglishReason('  ', SKATERS), 'vacia')
+  assert.equal(notEnglishReason('mar plata', 'mar plata'), null)
+})
+
+test('validateBrandbook uses the concept for each query', () => {
+  const doc = good({ search_queries: ['Mar del Plata beach skate', 'urban wall'] })
+  assert.deepEqual(validateBrandbook(doc, CATALOG, SCHEMA, SKATERS), { valid: true, errors: [] })
+  assert.deepEqual(validateBrandbook(doc, CATALOG, SCHEMA), {
+    valid: false,
+    errors: ["search_queries[0]: 'Mar del Plata beach skate' - contiene palabras del espanol: del"],
+  })
+})
 
 test('a good brandbook is valid', () => {
   assert.deepEqual(check(good()), { valid: true, errors: [] })

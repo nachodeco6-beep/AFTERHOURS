@@ -155,6 +155,23 @@ test('an apology is an invalid output: it gets its retry and the log names the r
   assert.deepEqual(lastLog().calls[0].invalid, ['disculpa'])
 })
 
+const NAMES_THE_PLACE = { ...BOOK, search_queries: ['Mar del Plata beach skate', 'urban wall'] }
+
+test('a query with a place the concept names is valid: the request\'s concept reaches the validator', async () => {
+  mockGemini(reply(JSON.stringify(NAMES_THE_PLACE)))
+  const res = await send(request({ concept: 'Remeras de Mar del Plata' }))
+  assert.equal(res.status, 200)
+  assert.deepEqual((await res.json()).brandbook, NAMES_THE_PLACE)
+  assert.equal(calls.length, 1)
+})
+
+test('the same query is an invalid output if the concept does not name the place', async () => {
+  mockGemini(reply(JSON.stringify(NAMES_THE_PLACE)), reply(JSON.stringify(NAMES_THE_PLACE)))
+  await assertError(await send(request({ concept: 'Remeras de Tandil' })), 502, 'ai_invalid_output')
+  assert.equal(calls.length, 2)
+  assert.deepEqual(lastLog().calls[0].invalid, ['search_queries'])
+})
+
 test('the real responseSchema offers Gemini both answers, without what it rejects', async () => {
   mockGemini(valid())
   await generate()

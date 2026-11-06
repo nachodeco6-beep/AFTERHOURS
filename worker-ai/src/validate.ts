@@ -39,20 +39,48 @@ const SPANISH_STOPWORDS = new Set([
   'con', 'para', 'por', 'del', 'al', 'que', 'en', 'es', 'muy',
 ])
 
+/** No accents, lowercase, straight apostrophes, single spaces: same as normalize_text in validate.py. */
+function normalizeText(text: string): string {
+  return text.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase().replace(/[’ʼ‘]/g, "'").replace(/\s+/g, ' ')
+}
+
+/**
+ * Which words of the query fall inside a name the concept already has. Same as named_span_covers in validate.py.
+ * From each word off the list, takes the longest run that appears in the concept and trims it until it ends off the
+ * list. It has to be the longest: with the short run "de la", "luz de la calle" would leave two common words outside
+ * and pass. Both ends off the list stop "beach de noche". A run with no listed word is not covered: there is nothing
+ * to excuse, and it would leave no words outside.
+ */
+function namedSpanCovers(words: string[], conceptWords: string[]): boolean[] {
+  const haystack = ` ${conceptWords.join(' ')} `
+  const covered = words.map(() => false)
+  words.forEach((word, start) => {
+    if (SPANISH_STOPWORDS.has(word)) return
+    let end = words.length
+    while (end > start + 1 && !haystack.includes(` ${words.slice(start, end).join(' ')} `)) end--
+    while (end > start && SPANISH_STOPWORDS.has(words[end - 1])) end--
+    if (words.slice(start, end).some((w) => SPANISH_STOPWORDS.has(w))) covered.fill(true, start, end)
+  })
+  return covered
+}
+
+/** What stays outside the names has to have at least one word, and none on the list. */
+function isExcusedByConcept(words: string[], concept: string): boolean {
+  const covered = namedSpanCovers(words, normalizeText(concept).match(/[a-z]+/g) ?? [])
+  const outside = words.filter((_, i) => !covered[i])
+  return outside.length > 0 && !outside.some((w) => SPANISH_STOPWORDS.has(w))
+}
+
 /** Returns why a query doesn't look like English, or null when it does. */
-export function notEnglishReason(query: string): string | null {
+export function notEnglishReason(query: string, concept?: string): string | null {
   const q = query.trim()
   if (!q) return 'vacia'
   if ([...q].some((c) => c.codePointAt(0)! > 127)) return 'tiene caracteres no ASCII (tildes o enie): no parece ingles'
   if (!/[A-Za-z]/.test(q)) return 'no tiene letras'
   const words = q.toLowerCase().match(/[a-z]+/g) ?? []
   const hits = [...new Set(words)].filter((w) => SPANISH_STOPWORDS.has(w)).sort()
-  return hits.length ? `contiene palabras del espanol: ${hits.join(', ')}` : null
-}
-
-/** No accents, lowercase, straight apostrophes, single spaces: same as normalize_text in validate.py. */
-function normalizeText(text: string): string {
-  return text.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase().replace(/[’ʼ‘]/g, "'").replace(/\s+/g, ' ')
+  if (!hits.length || (concept && isExcusedByConcept(words, concept))) return null
+  return `contiene palabras del espanol: ${hits.join(', ')}`
 }
 
 // Whole words only: "solo siento" does not contain "lo siento". Runs on normalized text, so ASCII is enough.
@@ -90,7 +118,8 @@ function branchFor(doc: object, schema: object): Schema {
   return anyOf.find((branch) => OFF_TOPIC in branch.properties === OFF_TOPIC in doc)!
 }
 
-export function validateBrandbook(doc: unknown, catalog: Catalog, schema: object): ValidationResult {
+/** Without a concept, no search query is excused. */
+export function validateBrandbook(doc: unknown, catalog: Catalog, schema: object, concept?: string): ValidationResult {
   if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) {
     return { valid: false, errors: ['el documento no es un objeto JSON'] }
   }
@@ -132,7 +161,7 @@ export function validateBrandbook(doc: unknown, catalog: Catalog, schema: object
   }
 
   obj.search_queries.forEach((q, i) => {
-    const reason = notEnglishReason(q)
+    const reason = notEnglishReason(q, concept)
     if (reason) errors.push(`search_queries[${i}]: '${q}' - ${reason}`)
   })
 
