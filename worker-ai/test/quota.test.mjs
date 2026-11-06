@@ -181,6 +181,12 @@ test('DoD: an invalid generation does not charge', async () => {
   assert.deepEqual(await (await quota()).json(), { remaining: 3, resetAt: null })
 })
 
+test('an apology does not charge', async () => {
+  const apology = reply(JSON.stringify({ ...BOOK, rationale: 'Lo siento, no puedo.' }))
+  gemini(apology, apology)
+  await assertRefused(await ask(), 502, 'ai_invalid_output', { remaining: 3, resetAt: null })
+})
+
 test('D16: an off-topic answer does not charge, and its call counts on the global cap', async () => {
   gemini(reply('{"fuera_de_tema": true}'))
   const res = await ask()

@@ -153,3 +153,35 @@ test('choosing the branch gives the same verdict as the whole schema', () => {
   })
   assert.equal(accepted.length, 2, 'solo el brandbook bueno y el fuera de tema exacto')
 })
+
+// ─── Apologies and refusals ─────────────────────────────────────────────────
+
+const PHRASES = JSON.parse(readFileSync(new URL('../../shared/ai/frases_rechazadas.json', import.meta.url), 'utf8'))
+
+test('the list has what the task names', () => {
+  for (const phrase of ['lo siento', 'no puedo', 'como modelo', "i'm sorry", 'i cannot']) assert.ok(PHRASES.includes(phrase), phrase)
+})
+
+test('every phrase is refused in every field that carries free text', () => {
+  for (const phrase of PHRASES) {
+    assertInvalid(good({ concepts: [`Algo ${phrase} algo`, 'Ruido de calle'] }), new RegExp(`^disculpa: concepts\\[0\\] contiene '${phrase}'$`))
+    assertInvalid(good({ rationale: `${phrase}.` }), new RegExp(`^disculpa: rationale contiene '${phrase}'$`))
+  }
+  assertInvalid(good({ search_queries: ['I cannot help', 'urban wall'] }), /^disculpa: search_queries\[0\] contiene 'i cannot'$/)
+})
+
+test('it does not care about case, accents, spacing or the kind of apostrophe', () => {
+  for (const text of ['LO SIENTO', 'Lo  siénto', 'lo\nsiento']) assertInvalid(good({ concepts: [text, 'Ruido'] }), /^disculpa: concepts\[0\] contiene 'lo siento'$/)
+  for (const text of ['I’m sorry', 'I‘m sorry', 'Iʼm sorry']) assertInvalid(good({ rationale: text }), /^disculpa: rationale contiene 'i'm sorry'$/)
+})
+
+test('a phrase inside a longer word does not count, and normal copy passes', () => {
+  for (const text of ['Solo siento la ciudad', 'No puedorros', 'Nosotros no podemos parar', 'Como modelos de pasarela']) {
+    assert.deepEqual(check(good({ concepts: [text, 'Ruido de calle'] })), { valid: true, errors: [] }, text)
+  }
+})
+
+test('the phrases are reported one by one, so a real apology shows them all', () => {
+  const { errors } = check(good({ concepts: ['Lo siento, pero no puedo crear una paleta.', 'Ruido'] }))
+  assert.deepEqual(errors.sort(), ["disculpa: concepts[0] contiene 'lo siento'", "disculpa: concepts[0] contiene 'no puedo'"])
+})

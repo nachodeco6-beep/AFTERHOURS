@@ -6,6 +6,7 @@
  */
 import { Validator } from '@cfworker/json-schema'
 import type { Schema } from '@cfworker/json-schema'
+import REJECTED_PHRASES from '../../shared/ai/frases_rechazadas.json' with { type: 'json' }
 
 export interface CatalogPair {
   id: number
@@ -47,6 +48,24 @@ export function notEnglishReason(query: string): string | null {
   const words = q.toLowerCase().match(/[a-z]+/g) ?? []
   const hits = [...new Set(words)].filter((w) => SPANISH_STOPWORDS.has(w)).sort()
   return hits.length ? `contiene palabras del espanol: ${hits.join(', ')}` : null
+}
+
+/** No accents, lowercase, straight apostrophes, single spaces: same as normalize_text in validate.py. */
+function normalizeText(text: string): string {
+  return text.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase().replace(/[’ʼ‘]/g, "'").replace(/\s+/g, ' ')
+}
+
+// Whole words only: "solo siento" does not contain "lo siento". Runs on normalized text, so ASCII is enough.
+const REJECTED = REJECTED_PHRASES.map((phrase) => {
+  const normalized = normalizeText(phrase)
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return { phrase: normalized, pattern: new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`) }
+})
+
+/** The name goes first so the log can tell this rule apart: it records the name, not the text. */
+function apologyErrors(field: string, text: string): string[] {
+  const normalized = normalizeText(text)
+  return REJECTED.filter(({ pattern }) => pattern.test(normalized)).map(({ phrase }) => `disculpa: ${field} contiene '${phrase}'`)
 }
 
 interface ShapedBrandbook {
@@ -128,6 +147,11 @@ export function validateBrandbook(doc: unknown, catalog: Catalog, schema: object
   if (palette && obj.mood !== palette.mood) {
     errors.push(`mood: '${obj.mood}' no coincide con el de la paleta '${obj.palette_id}' (${palette.mood})`)
   }
+
+  for (const field of ['concepts', 'search_queries'] as const) {
+    obj[field].forEach((value, i) => errors.push(...apologyErrors(`${field}[${i}]`, value)))
+  }
+  errors.push(...apologyErrors('rationale', obj.rationale))
 
   return { valid: errors.length === 0, errors }
 }

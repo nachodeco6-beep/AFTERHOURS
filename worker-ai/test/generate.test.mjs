@@ -147,6 +147,14 @@ for (const [name, text] of [
   })
 }
 
+test('an apology is an invalid output: it gets its retry and the log names the rule', async () => {
+  mockGemini(reply(JSON.stringify({ ...BOOK, concepts: ['Lo siento, no puedo.', 'Ruido'] })), valid())
+  const res = await generate()
+  assert.equal(res.status, 200)
+  assert.deepEqual((await res.json()).brandbook, BOOK)
+  assert.deepEqual(lastLog().calls[0].invalid, ['disculpa'])
+})
+
 test('the real responseSchema offers Gemini both answers, without what it rejects', async () => {
   mockGemini(valid())
   await generate()

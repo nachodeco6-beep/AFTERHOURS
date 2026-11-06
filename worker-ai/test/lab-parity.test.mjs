@@ -33,6 +33,7 @@ const base = JSON.parse(skip ? '{}' : readFileSync(join(FIXTURES, 'ok.json'), 'u
 const INLINE = {
   'query con tilde': { ...base, search_queries: ['café brutalista', 'urban wall'] },
   'query en español': { ...base, search_queries: ['luz de la calle', 'urban wall'] },
+  'query en español y en mayúsculas': { ...base, search_queries: ['LUZ DE LA CALLE', 'urban wall'] },
   'query sin letras': { ...base, search_queries: ['1234 !!', 'urban wall'] },
   'query inglesa con palabras ambiguas': { ...base, search_queries: ['no son of a wall', 'urban wall'] },
   'frase con espacios': { ...base, concepts: ['   ', 'Ruido de calle'] },
@@ -42,6 +43,11 @@ const INLINE = {
   'varios errores a la vez': { ...base, mood: 'lujo', rationale: ' ', search_queries: ['café', 'en la calle'] },
   'otro par y paleta válidos': { ...base, pair_id: 62, palette_id: 'after-hours', mood: 'urbano' },
   'no es un objeto': ['a'],
+  'disculpa en rationale': { ...base, rationale: 'Lo siento: no puedo elegir.' },
+  'disculpa en query': { ...base, search_queries: ['I cannot help', 'urban wall'] },
+  'disculpa con tilde y mayusculas': { ...base, concepts: ['COMO INTELIGENCIA ARTIFICIÁL no', 'Ruido de calle'] },
+  'disculpa con apóstrofe curvo': { ...base, concepts: ['I’m  sorry', 'Ruido de calle'] },
+  'palabra que contiene una frase': { ...base, concepts: ['Solo siento la ciudad', 'No puedorros'] },
   'objeto vacío': {},
   'fuera de tema como texto': { fuera_de_tema: 'true' },
   'brandbook con fuera de tema': { ...base, fuera_de_tema: true },
@@ -63,6 +69,7 @@ test('the Worker and Python send Gemini the same responseSchema', { skip }, () =
 test('the Worker and Python agree on every fixture and edge case', { skip }, () => {
   const files = readdirSync(FIXTURES).filter((f) => f.endsWith('.json')).sort()
   assert.deepEqual(files, [
+    'bad_disculpa.json',
     'bad_fuera_de_tema_extra.json',
     'bad_fuera_de_tema_false.json',
     'bad_mood.json',
@@ -94,5 +101,5 @@ test('the Worker and Python agree on every fixture and edge case', { skip }, () 
 
   // Guards against both validators accepting (or rejecting) everything.
   const validNames = summary.filter(([, valid]) => valid).map(([name]) => name).sort()
-  assert.deepEqual(validNames, ['fuera_de_tema.json', 'ok.json', 'otro par y paleta válidos', 'query inglesa con palabras ambiguas'])
+  assert.deepEqual(validNames, ['fuera_de_tema.json', 'ok.json', 'otro par y paleta válidos', 'palabra que contiene una frase', 'query inglesa con palabras ambiguas'])
 })
