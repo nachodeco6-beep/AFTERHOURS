@@ -115,6 +115,48 @@ async function assertError(res, httpStatus, code, upstreamStatus) {
   assert.equal(error.upstreamStatus, upstreamStatus)
 }
 
+// ─── D16: off-topic ─────────────────────────────────────────────────────────
+
+test('an off-topic answer comes back as such, with its metrics and without a brandbook', async () => {
+  mockGemini(reply('{"fuera_de_tema": true}', { promptTokenCount: 100, candidatesTokenCount: 6, thoughtsTokenCount: 2 }))
+  const res = await generate()
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.deepEqual(Object.keys(body).sort(), ['fuera_de_tema', 'latency_ms', 'model', 'remaining', 'resetAt', 'tokens_in', 'tokens_out', 'tokens_thoughts'])
+  assert.equal(body.fuera_de_tema, true)
+  assert.equal(body.model, 'model-main')
+  assert.equal(body.tokens_in, 100)
+  assert.equal(body.tokens_out, 8)
+  assert.equal(calls.length, 1)
+  const log = lastLog()
+  assert.equal(log.outcome, 'fuera_de_tema')
+  assert.equal(log.charged, false)
+})
+
+for (const [name, text] of [
+  ['false', '{"fuera_de_tema": false}'],
+  ['with another field', '{"fuera_de_tema": true, "motivo": "x"}'],
+]) {
+  test(`an off-topic answer ${name} is an invalid output and gets its retry`, async () => {
+    mockGemini(reply(text), valid())
+    const res = await generate()
+    assert.equal(res.status, 200)
+    assert.deepEqual((await res.json()).brandbook, BOOK)
+    assert.equal(calls.length, 2)
+    assert.deepEqual(lastLog().calls[0].invalid, ['schema'])
+  })
+}
+
+test('the real responseSchema offers Gemini both answers, without what it rejects', async () => {
+  mockGemini(valid())
+  await generate()
+  const sent = calls[0].body.generationConfig.responseSchema
+  assert.deepEqual(Object.keys(sent), ['anyOf'])
+  assert.equal(sent.anyOf.length, 2)
+  assert.ok(!JSON.stringify(sent).includes('additionalProperties'))
+  assert.ok(!JSON.stringify(sent).includes('const'))
+})
+
 // ─── The request to Gemini ──────────────────────────────────────────────────
 
 test('a valid output comes back with its metrics', async () => {

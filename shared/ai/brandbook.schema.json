@@ -1,138 +1,155 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "AFTERHOUR Brandbook Output",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "mood",
-    "pair_id",
-    "palette_id",
-    "concepts",
-    "search_queries",
-    "applications",
-    "rationale"
-  ],
-  "properties": {
-    "mood": {
-      "description": "Mood seleccionado. Uno de los 7 valores exactos, en minúscula y sin acentos.",
-      "type": "string",
-      "enum": [
-        "editorial",
-        "urbano",
-        "lujo",
-        "retro",
-        "tecnico",
-        "calido",
-        "experimental"
-      ]
-    },
-    "pair_id": {
-      "description": "ID del par tipográfico. Debe existir en el catálogo (1..62).",
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 62
-    },
-    "palette_id": {
-      "description": "ID de la paleta. Debe existir en el catálogo de paletas.",
-      "type": "string",
-      "enum": [
-        "after-hours",
-        "acido-y-alarma",
-        "revista-suiza",
-        "papel-y-tinta",
-        "diario-de-domingo",
-        "galeria-blanca",
-        "tipografia-de-museo",
-        "archivo-gris",
-        "bauhaus",
-        "catalogo-de-arquitectura",
-        "neon-y-asfalto",
-        "techno-de-madrugada",
-        "hormigon",
-        "subte",
-        "grafiti",
-        "skate-park",
-        "colectivo",
-        "fabrica",
-        "champagne",
-        "terciopelo",
-        "marmol",
-        "joyeria",
-        "perfume",
-        "noche-de-gala",
-        "hotel-del-lago",
-        "cuero-y-bronce",
-        "surf-90s",
-        "disco-70s",
-        "kodachrome",
-        "pastel-lavado",
-        "fotonovela",
-        "diner",
-        "formica",
-        "videoclub",
-        "anos-20",
-        "plano-azul",
-        "terminal",
-        "laboratorio",
-        "circuito",
-        "interfaz-oscura",
-        "satelite",
-        "fibra-optica",
-        "monocromo-tecnico",
-        "pliego-kraft",
-        "desierto",
-        "terracota",
-        "mate-y-bizcochos",
-        "siesta",
-        "feria-de-san-telmo",
-        "cafe-con-leche",
-        "otono-en-palermo",
-        "atardecer",
-        "ladrillo-y-musgo",
-        "acido",
-        "holograma",
-        "glitch",
-        "rave",
-        "brutalismo",
-        "ciencia-ficcion",
-        "mutante",
-        "collage-punk"
-      ]
-    },
-    "concepts": {
-      "description": "2-4 frases en español, tono de marca (no descripción del diseño).",
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 4,
-      "items": {
-        "type": "string",
-        "minLength": 1
+  "anyOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mood",
+        "pair_id",
+        "palette_id",
+        "concepts",
+        "search_queries",
+        "applications",
+        "rationale"
+      ],
+      "properties": {
+        "mood": {
+          "description": "Mood seleccionado. Uno de los 7 valores exactos, en minúscula y sin acentos.",
+          "type": "string",
+          "enum": [
+            "editorial",
+            "urbano",
+            "lujo",
+            "retro",
+            "tecnico",
+            "calido",
+            "experimental"
+          ]
+        },
+        "pair_id": {
+          "description": "ID del par tipográfico. Debe existir en el catálogo (1..62).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 62
+        },
+        "palette_id": {
+          "description": "ID de la paleta. Debe existir en el catálogo de paletas.",
+          "type": "string",
+          "enum": [
+            "after-hours",
+            "acido-y-alarma",
+            "revista-suiza",
+            "papel-y-tinta",
+            "diario-de-domingo",
+            "galeria-blanca",
+            "tipografia-de-museo",
+            "archivo-gris",
+            "bauhaus",
+            "catalogo-de-arquitectura",
+            "neon-y-asfalto",
+            "techno-de-madrugada",
+            "hormigon",
+            "subte",
+            "grafiti",
+            "skate-park",
+            "colectivo",
+            "fabrica",
+            "champagne",
+            "terciopelo",
+            "marmol",
+            "joyeria",
+            "perfume",
+            "noche-de-gala",
+            "hotel-del-lago",
+            "cuero-y-bronce",
+            "surf-90s",
+            "disco-70s",
+            "kodachrome",
+            "pastel-lavado",
+            "fotonovela",
+            "diner",
+            "formica",
+            "videoclub",
+            "anos-20",
+            "plano-azul",
+            "terminal",
+            "laboratorio",
+            "circuito",
+            "interfaz-oscura",
+            "satelite",
+            "fibra-optica",
+            "monocromo-tecnico",
+            "pliego-kraft",
+            "desierto",
+            "terracota",
+            "mate-y-bizcochos",
+            "siesta",
+            "feria-de-san-telmo",
+            "cafe-con-leche",
+            "otono-en-palermo",
+            "atardecer",
+            "ladrillo-y-musgo",
+            "acido",
+            "holograma",
+            "glitch",
+            "rave",
+            "brutalismo",
+            "ciencia-ficcion",
+            "mutante",
+            "collage-punk"
+          ]
+        },
+        "concepts": {
+          "description": "2-4 frases en español, tono de marca (no descripción del diseño).",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "search_queries": {
+          "description": "2-4 strings en inglés para Unsplash.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "applications": {
+          "description": "1-6 strings en minúscula (p. ej. web, social, print).",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z-]*$"
+          }
+        },
+        "rationale": {
+          "description": "Una o dos frases explicando la elección.",
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "search_queries": {
-      "description": "2-4 strings en inglés para Unsplash.",
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 4,
-      "items": {
-        "type": "string",
-        "minLength": 1
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fuera_de_tema"
+      ],
+      "properties": {
+        "fuera_de_tema": {
+          "type": "boolean",
+          "const": true
+        }
       }
-    },
-    "applications": {
-      "description": "1-6 strings en minúscula (p. ej. web, social, print).",
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 6,
-      "items": {
-        "type": "string",
-        "pattern": "^[a-z][a-z-]*$"
-      }
-    },
-    "rationale": {
-      "description": "Una o dos frases explicando la elección.",
-      "type": "string",
-      "minLength": 1
     }
-  }
+  ]
 }

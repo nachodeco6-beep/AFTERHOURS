@@ -1,6 +1,7 @@
 // Tests for the brandbook validator, with the real schema. Run with «npm test».
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { Validator } from '@cfworker/json-schema'
 import { test } from 'node:test'
 import { MOODS } from '../../src/data/moods.ts'
 import { PALETTES } from '../../src/data/palettes.ts'
@@ -98,11 +99,57 @@ test('the mood has to be the mood of the palette', () => {
 })
 
 test('the schema matches the catalog in src/data', () => {
-  const { mood, pair_id, palette_id } = SCHEMA.properties
+  const { mood, pair_id, palette_id } = SCHEMA.anyOf[0].properties
   assert.deepEqual(mood.enum, MOODS)
   assert.deepEqual(palette_id.enum, PALETTES.map((p) => p.id))
   const ids = TYPE_PAIRS.map((p) => p.id)
   assert.equal(pair_id.minimum, Math.min(...ids))
   assert.equal(pair_id.maximum, Math.max(...ids))
   assert.equal(new Set(ids).size, ids.length, 'hay pair_id duplicados')
+})
+
+// ─── D16: off-topic ─────────────────────────────────────────────────────────
+
+test('the off-topic answer is valid and skips the catalog', () => {
+  assert.deepEqual(check({ fuera_de_tema: true }, { pairs: [], palettes: [] }), { valid: true, errors: [] })
+})
+
+test('nothing else passes as off-topic', () => {
+  for (const doc of [
+    { fuera_de_tema: false },
+    { fuera_de_tema: 'true' },
+    { fuera_de_tema: 1 },
+    { fuera_de_tema: null },
+    { fuera_de_tema: true, motivo: 'x' },
+    { ...good(), fuera_de_tema: true },
+    { ...good(), fuera_de_tema: false },
+  ]) assertInvalid(doc, /^schema:/)
+})
+
+test('an empty object is invalid, and the errors are those of the brandbook', () => {
+  assertInvalid({}, /^schema:/)
+  assert.ok(!check({}).errors.some((e) => e.includes('fuera_de_tema')), JSON.stringify(check({}).errors))
+})
+
+test('choosing the branch gives the same verdict as the whole schema', () => {
+  const whole = new Validator(SCHEMA, '2020-12', false)
+  const docs = [
+    good(),
+    { fuera_de_tema: true },
+    { fuera_de_tema: false },
+    { fuera_de_tema: true, motivo: 'x' },
+    { ...good(), fuera_de_tema: true },
+    {},
+    good({ mood: 'Elegante' }),
+    good({ pair_id: 99 }),
+    good({ color_palette: [] }),
+    good({ concepts: ['una sola'] }),
+  ]
+  const accepted = docs.filter((doc) => {
+    const verdict = whole.validate(doc).valid
+    const errors = check(doc).errors
+    assert.equal(!errors.some((e) => e.startsWith('schema:')), verdict, JSON.stringify(doc))
+    return verdict
+  })
+  assert.equal(accepted.length, 2, 'solo el brandbook bueno y el fuera de tema exacto')
 })

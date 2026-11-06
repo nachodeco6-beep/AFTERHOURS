@@ -3,7 +3,7 @@
  * Retries for 429/5xx/timeout (D12) live in gemini.ts; the two share one deadline but
  * count separately, so a request can make up to 6 calls.
  */
-import type { Brandbook, GenerateResponse } from '../../shared/types.ts'
+import type { Brandbook, GenerateBrandbookResponse, GenerateOffTopicResponse } from '../../shared/types.ts'
 import { callGemini, MAX_ATTEMPTS } from './gemini.ts'
 import type { GeminiCall, GeminiRequest, GeminiSettings } from './gemini.ts'
 import { validateBrandbook } from './validate.ts'
@@ -21,7 +21,9 @@ export interface GenerationSettings extends GeminiSettings {
 export type GenerationFailure = 'ai_invalid_output' | 'ai_unavailable'
 
 /** The quota fields are added once the attempt has been settled. */
-export type GeneratedResponse = Omit<GenerateResponse, 'remaining' | 'resetAt'>
+export type GeneratedResponse =
+  | Omit<GenerateBrandbookResponse, 'remaining' | 'resetAt'>
+  | Omit<GenerateOffTopicResponse, 'remaining' | 'resetAt'>
 
 export type GenerationResult =
   | { ok: true; response: GeneratedResponse }
@@ -43,7 +45,9 @@ export interface Generation {
 /** `pair_id: 99 no existe...` -> `pair_id`. An output that does not parse is `json`. */
 const ruleNames = (errors: string[]): string[] => [...new Set(errors.map((e) => e.split(/[:[]/, 1)[0]))]
 
-function checkOutput(text: string, catalog: Catalog, schema: object): { brandbook: Brandbook } | { invalid: string[] } {
+type CheckedOutput = { brandbook: Brandbook } | { fuera_de_tema: true } | { invalid: string[] }
+
+function checkOutput(text: string, catalog: Catalog, schema: object): CheckedOutput {
   let doc: unknown
   try {
     doc = JSON.parse(text)
@@ -51,7 +55,8 @@ function checkOutput(text: string, catalog: Catalog, schema: object): { brandboo
     return { invalid: ['json'] }
   }
   const { valid, errors } = validateBrandbook(doc, catalog, schema)
-  return valid ? { brandbook: doc as Brandbook } : { invalid: ruleNames(errors) }
+  if (!valid) return { invalid: ruleNames(errors) }
+  return 'fuera_de_tema' in (doc as object) ? { fuera_de_tema: true } : { brandbook: doc as Brandbook }
 }
 
 export async function generate(
@@ -76,9 +81,9 @@ export async function generate(
     totals.tokens_thoughts += reply.usage.tokens_thoughts
 
     const checked = checkOutput(reply.text, catalog, schema)
-    if ('brandbook' in checked) {
+    if (!('invalid' in checked)) {
       const response: GeneratedResponse = {
-        brandbook: checked.brandbook,
+        ...checked,
         model: reply.model,
         latency_ms: reply.latency_ms,
         ...totals,

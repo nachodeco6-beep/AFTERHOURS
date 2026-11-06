@@ -1,6 +1,7 @@
 /**
  * Validates a model's output with the same rules as afterhours-ai/validate.py:
- * shared/ai/brandbook.schema.json first, then the catalog and text checks.
+ * shared/ai/brandbook.schema.json first, then the catalog and text checks. An off-topic answer
+ * ({"fuera_de_tema": true}, D16) only has to match the schema: it has nothing to check in the catalog.
  * test/lab-parity.test.mjs fails if the two validators disagree.
  */
 import { Validator } from '@cfworker/json-schema'
@@ -58,16 +59,29 @@ interface ShapedBrandbook {
   rationale: string
 }
 
+const OFF_TOPIC = 'fuera_de_tema'
+
+/**
+ * The schema's two branches share no key, so the document's keys say which one can accept it.
+ * Validating against that branch gives the same verdict as the whole schema, with errors that name
+ * the field instead of "matches no branch". test/validate.test.mjs compares the two.
+ */
+function branchFor(doc: object, schema: object): Schema {
+  const { anyOf } = schema as { anyOf: (Schema & { properties: object })[] }
+  return anyOf.find((branch) => OFF_TOPIC in branch.properties === OFF_TOPIC in doc)!
+}
+
 export function validateBrandbook(doc: unknown, catalog: Catalog, schema: object): ValidationResult {
   if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) {
     return { valid: false, errors: ['el documento no es un objeto JSON'] }
   }
 
   // Without a valid shape the rest makes no sense: it assumes the fields exist and have the right type.
-  const shape = new Validator(schema as Schema, '2020-12', false).validate(doc)
+  const shape = new Validator(branchFor(doc, schema), '2020-12', false).validate(doc)
   if (!shape.valid) {
     return { valid: false, errors: shape.errors.map((e) => `schema: ${e.instanceLocation} - ${e.error}`) }
   }
+  if (OFF_TOPIC in doc) return { valid: true, errors: [] }
 
   const obj = doc as ShapedBrandbook
   const errors: string[] = []

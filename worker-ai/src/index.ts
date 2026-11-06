@@ -3,6 +3,7 @@
  *
  *   POST /generate { concept, clientId, turnstileToken }
  *     -> { brandbook, model, latency_ms, tokens_in, tokens_out, tokens_thoughts, remaining, resetAt }
+ *     -> { fuera_de_tema: true, model, ... } if it isn't a brand (D16): the same, without a brandbook
  *   GET /quota?clientId= -> { remaining, resetAt }
  *
  * The secrets live in GEMINI_API_KEY, TURNSTILE_SECRET_KEY and IP_HASH_SECRET. Both endpoints only
@@ -183,7 +184,7 @@ function logGeneration({ result, rounds, calls }: Generation, totalMs: number, s
   console.log(
     JSON.stringify({
       event: 'generate',
-      outcome: result.ok ? 'ok' : result.code,
+      outcome: !result.ok ? result.code : 'brandbook' in result.response ? 'ok' : 'fuera_de_tema',
       model: result.ok ? result.response.model : null,
       upstream_status: result.ok ? null : (result.upstreamStatus ?? null),
       rounds,
@@ -298,10 +299,13 @@ async function handleGenerate(request: Request, env: Env): Promise<Response> {
   // Before answering, so a valid brandbook never leaves without being charged. If it fails, the
   // brandbook still goes out, because Gemini is already paid for. The hold will expire without
   // charging the user and leave the worst case counted, which is what `reservation.quota` says for now.
+  // D16: an off-topic answer is a valid answer, but only a brandbook spends an attempt. Its calls
+  // still count on the global cap, because settle counts them whatever the result.
   const { result, calls } = generation
+  const chargeable = result.ok && 'brandbook' in result.response
   let settlement: Settlement | null = null
   try {
-    settlement = await client.settle(reservation.holdId, who, { valid: result.ok, calls: calls.length })
+    settlement = await client.settle(reservation.holdId, who, { valid: chargeable, calls: calls.length })
   } catch (error) {
     console.error('afterhours-ai: no se pudo cerrar la reserva', error)
   }

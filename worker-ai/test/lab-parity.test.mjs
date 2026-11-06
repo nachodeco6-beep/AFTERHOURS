@@ -42,6 +42,9 @@ const INLINE = {
   'varios errores a la vez': { ...base, mood: 'lujo', rationale: ' ', search_queries: ['café', 'en la calle'] },
   'otro par y paleta válidos': { ...base, pair_id: 62, palette_id: 'after-hours', mood: 'urbano' },
   'no es un objeto': ['a'],
+  'objeto vacío': {},
+  'fuera de tema como texto': { fuera_de_tema: 'true' },
+  'brandbook con fuera de tema': { ...base, fuera_de_tema: true },
 }
 
 test('the Worker and Python render the same prompt', { skip }, () => {
@@ -53,18 +56,21 @@ test('the Worker and Python render the same prompt', { skip }, () => {
 
 test('the Worker and Python send Gemini the same responseSchema', { skip }, () => {
   const { gemini_schema: lab } = runLab([])
-  assert.equal(lab.properties.palette_id.enum.length, 61, 'schema de Python sospechoso')
+  assert.equal(lab.anyOf[0].properties.palette_id.enum.length, 61, 'schema de Python sospechoso')
   assert.deepEqual(toGeminiSchema(SCHEMA), lab)
 })
 
 test('the Worker and Python agree on every fixture and edge case', { skip }, () => {
   const files = readdirSync(FIXTURES).filter((f) => f.endsWith('.json')).sort()
   assert.deepEqual(files, [
+    'bad_fuera_de_tema_extra.json',
+    'bad_fuera_de_tema_false.json',
     'bad_mood.json',
     'bad_mood_palette.json',
     'bad_pair_id.json',
     'bad_palette.json',
     'extra_colors.json',
+    'fuera_de_tema.json',
     'missing_palette.json',
     'ok.json',
   ])
@@ -88,5 +94,5 @@ test('the Worker and Python agree on every fixture and edge case', { skip }, () 
 
   // Guards against both validators accepting (or rejecting) everything.
   const validNames = summary.filter(([, valid]) => valid).map(([name]) => name).sort()
-  assert.deepEqual(validNames, ['ok.json', 'otro par y paleta válidos', 'query inglesa con palabras ambiguas'])
+  assert.deepEqual(validNames, ['fuera_de_tema.json', 'ok.json', 'otro par y paleta válidos', 'query inglesa con palabras ambiguas'])
 })

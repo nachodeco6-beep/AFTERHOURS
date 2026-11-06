@@ -101,8 +101,7 @@ export interface QuotaInfo {
   resetAt: string | null
 }
 
-export interface GenerateResponse extends QuotaInfo {
-  brandbook: Brandbook
+interface GenerationMetrics extends QuotaInfo {
   /** The Gemini model that answered */
   model: string
   /** Only the call that answered: no backoff, no failed attempts */
@@ -114,6 +113,18 @@ export interface GenerateResponse extends QuotaInfo {
   /** The thoughts part of tokens_out: already counted there, don't add them */
   tokens_thoughts: number
 }
+
+export interface GenerateBrandbookResponse extends GenerationMetrics {
+  brandbook: Brandbook
+}
+
+/** The request isn't a brand (D16). Doesn't spend an attempt; `remaining` is unchanged */
+export interface GenerateOffTopicResponse extends GenerationMetrics {
+  fuera_de_tema: true
+}
+
+/** Tell them apart by the key: `'brandbook' in response` */
+export type GenerateResponse = GenerateBrandbookResponse | GenerateOffTopicResponse
 
 export type AiErrorCode =
   | 'invalid_params'

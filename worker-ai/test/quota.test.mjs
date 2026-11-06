@@ -181,6 +181,33 @@ test('DoD: an invalid generation does not charge', async () => {
   assert.deepEqual(await (await quota()).json(), { remaining: 3, resetAt: null })
 })
 
+test('D16: an off-topic answer does not charge, and its call counts on the global cap', async () => {
+  gemini(reply('{"fuera_de_tema": true}'))
+  const res = await ask()
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.fuera_de_tema, true)
+  assert.equal(body.brandbook, undefined)
+  assert.equal(body.remaining, 3)
+  assert.equal(body.resetAt, null)
+  assert.deepEqual(await (await quota()).json(), { remaining: 3, resetAt: null })
+  assert.equal(globalCount(), 1, 'la llamada cuenta; el peor caso reservado se devuelve')
+  const [log] = generationLogs()
+  assert.equal(log.outcome, 'fuera_de_tema')
+  assert.equal(log.charged, false)
+  assert.equal(log.global_calls_today, 1)
+})
+
+test('D16: off-topic answers leave all 3 attempts usable', async () => {
+  for (let i = 0; i < 5; i++) {
+    gemini(reply('{"fuera_de_tema": true}'))
+    geminiCalls = []
+    assert.equal((await ask()).status, 200)
+  }
+  for (let i = 0; i < 3; i++) assert.equal((await askValid()).status, 200, `intento ${i}`)
+  await assertRefused(await ask(), 429, 'quota_exceeded', { remaining: 0, resetAt: iso(NOON + DAY) })
+})
+
 test('D7: Gemini being unavailable does not charge either', async () => {
   gemini(status(503), status(503), status(503))
   const res = await ask()

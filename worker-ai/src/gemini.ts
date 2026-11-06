@@ -11,7 +11,7 @@ const TEMPERATURE = 0.2
 // Keys the Gemini API rejects in responseSchema. Same list as run_benchmark.py.
 const GEMINI_UNSUPPORTED = new Set([
   '$schema', '$id', 'title', 'additionalProperties', 'unevaluatedProperties',
-  'default', 'examples', 'deprecated', 'readOnly', 'writeOnly',
+  'default', 'examples', 'deprecated', 'readOnly', 'writeOnly', 'const',
 ])
 
 /** Port of to_gemini_schema in run_benchmark.py; test/lab-parity.test.mjs compares them. */
@@ -25,7 +25,7 @@ export function toGeminiSchema(node: unknown): unknown {
     if (key === 'properties') {
       // These keys are property names, not schema keywords: a property called "title" stays.
       out[key] = Object.fromEntries(Object.entries(value as object).map(([name, sub]) => [name, toGeminiSchema(sub)]))
-    } else if (key === 'items') {
+    } else if (key === 'items' || key === 'anyOf') {
       out[key] = toGeminiSchema(value)
     } else {
       out[key] = value
