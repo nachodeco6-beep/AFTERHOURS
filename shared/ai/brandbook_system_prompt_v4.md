@@ -95,7 +95,7 @@ Salida:
     "black ink on paper texture",
     "quiet studio natural light"
   ],
-  "applications": ["social", "signage"],
+  "applications": ["social", "signage", "print"],
   "rationale": "Evita lo gótico del rubro; la serif y el papel y tinta remiten al dibujo a mano y a la precisión del trazo."
 }
 ```
