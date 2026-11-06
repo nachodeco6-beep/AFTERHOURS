@@ -80,7 +80,14 @@ const generate = (mf, clientId, ip) =>
     body: JSON.stringify({ concept: 'Una cafetería junto al mar', clientId, turnstileToken: 'token-simulado' }),
   })
 
-const readAll = (responses) => Promise.all(responses.map(async (res) => ({ status: res.status, body: await res.json() })))
+// Each body is read as soon as its response arrives. Waiting for the whole burst loses bodies: a rejection arrives
+// about 100 ms before a generation, and a garbage collection in between leaves it empty ("Body has already been
+// read"). Miniflare asks for this too: see MINIFLARE_ASSERT_BODIES_CONSUMED in dispatchFetch.
+const readAll = (pending) =>
+  Promise.all(pending.map(async (response) => {
+    const res = await response
+    return { status: res.status, body: await res.json() }
+  }))
 
 let tight, wide
 
@@ -102,7 +109,7 @@ beforeEach(() => {
 test('DoD, on the real object: two simultaneous requests with 1 attempt left, only one passes', async () => {
   const client = newClient()
   const ip = newIp()
-  const results = await readAll(await Promise.all([generate(tight, client, ip), generate(tight, client, ip)]))
+  const results = await readAll([generate(tight, client, ip), generate(tight, client, ip)])
 
   assert.deepEqual(results.map((r) => r.status).sort(), [200, 429], JSON.stringify(results))
   assert.equal(geminiCalls, 1, 'el segundo se rechaza sin llamar a Gemini')
@@ -114,7 +121,7 @@ test('a burst of 12 simultaneous requests with 3 attempts: exactly 3 pass', asyn
   const client = newClient()
   const ip = newIp()
   const burst = Array.from({ length: 12 }, () => generate(wide, client, ip))
-  const results = await readAll(await Promise.all(burst))
+  const results = await readAll(burst)
 
   assert.equal(results.filter((r) => r.status === 200).length, 3, JSON.stringify(results.map((r) => r.status)))
   assert.equal(results.filter((r) => r.status === 429).length, 9)
@@ -126,7 +133,7 @@ test('the IP cap holds under a burst of different browsers', async () => {
   try {
     const ip = newIp()
     const burst = Array.from({ length: 6 }, () => generate(mf, newClient(), ip))
-    const results = await readAll(await Promise.all(burst))
+    const results = await readAll(burst)
     assert.equal(results.filter((r) => r.status === 200).length, 2, JSON.stringify(results.map((r) => r.status)))
     assert.equal(geminiCalls, 2)
   } finally {
@@ -138,7 +145,7 @@ test('the global cap holds under a burst: holds in progress count, so it never g
   const mf = start({ FREE_PER_24H: '3', IP_PER_DAY: '1000', GLOBAL_PER_DAY: '12' })
   try {
     const burst = Array.from({ length: 6 }, () => generate(mf, newClient(), newIp()))
-    const results = await readAll(await Promise.all(burst))
+    const results = await readAll(burst)
     assert.equal(results.filter((r) => r.status === 200).length, 2, JSON.stringify(results.map((r) => r.status)))
     assert.equal(results.filter((r) => r.status === 429 && r.body.error.code === 'global_limit').length, 4)
     assert.equal(geminiCalls, 2)
