@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { SearchResponse } from '../../shared/types'
+import type { QuotaInfo, SearchResponse } from '../../shared/types'
 import { StudioContext, type Board, type Include, type Picked, type StudioApi, type TagResult, type ToggleResult } from '../hooks/useStudio'
+import { AiFailure, generate, getClientId, getQuota } from '../lib/aiApi'
+import { AI_API_URL, AI_CONFIGURED } from '../lib/aiConfig'
+import { applyProposal, conceptProblem, nextPaletteOrigin, reduceAiRequest, suggestedQueries, type AiRequestEvent, type AiRequestState, type ProposalPatch } from '../lib/aiProposal'
+import { basisOf } from '../lib/colorLab'
 import { DEFAULT_FORMAT } from '../lib/formats'
 import { poolOf } from '../lib/pool'
+import { TurnstileError } from '../lib/turnstile'
+import { MAX_TAGS } from '../lib/tags'
 import {
   browserStorage,
   contentOf,
@@ -42,6 +48,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     selectionRef.current = selection
   }, [selection])
+  const boardRef = useRef(board)
+  useLayoutEffect(() => {
+    boardRef.current = board
+  }, [board])
+  const resultsRef = useRef(results)
+  useLayoutEffect(() => {
+    resultsRef.current = results
+  }, [results])
 
   useEffect(() => () => controller.current?.abort(), [])
 
@@ -136,6 +150,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // ─── Board ────────────────────────────────────────────────────────────────
 
+  // an AI direction applied before «Armar»: the next build starts from it
+  const [pendingAi, setPendingAi] = useState<ProposalPatch | null>(null)
+
   const buildBoard = useCallback(
     (include: Include) => {
       const first = parseTags(idea).searchable[0] ?? tags[0] ?? 'Moodboard'
@@ -146,22 +163,29 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         include,
         pairOffset: prev?.pairOffset ?? 0,
         notes: prev?.notes ?? null,
-        fonts: prev?.fonts ?? null,
+        fonts: prev?.fonts ?? pendingAi?.fonts ?? null,
         typeStyle: prev?.typeStyle ?? DEFAULT_TYPE_STYLE,
-        paletteEdit: prev?.paletteEdit ?? null,
-        paletteOrigin: prev?.paletteOrigin ?? 'fotos',
-        aiPalette: prev?.aiPalette ?? null,
-        ai: prev?.ai ?? null,
+        paletteEdit: prev?.paletteEdit ?? pendingAi?.paletteEdit ?? null,
+        paletteOrigin: prev?.paletteOrigin ?? pendingAi?.paletteOrigin ?? 'fotos',
+        aiPalette: prev?.aiPalette ?? pendingAi?.aiPalette ?? null,
+        ai: prev?.ai ?? pendingAi?.ai ?? null,
         divergenceDismissal: prev?.divergenceDismissal ?? null,
         extras: prev?.extras ?? {},
         savedId: prev?.savedId ?? null,
         buildId: (prev?.buildId ?? 0) + 1,
       }))
+      if (pendingAi) setPendingAi(null)
     },
-    [idea, tags],
+    [idea, tags, pendingAi],
   )
 
-  const updateBoard = useCallback((patch: Partial<Omit<Board, 'buildId' | 'savedId'>>) => setBoard((b) => (b ? { ...b, ...patch } : b)), [])
+  // every patch goes through the palette-origin rules (D22): touching a colour
+  // over an AI palette turns it manual, with its basis on the photos of now (N5)
+  const updateBoard = useCallback(
+    (patch: Partial<Omit<Board, 'buildId' | 'savedId'>>) =>
+      setBoard((b) => (b ? { ...b, ...nextPaletteOrigin(b, patch, basisOf(selectionRef.current.map((s) => s.photo.id))) } : b)),
+    [],
+  )
   const dismantleBoard = useCallback(() => setBoard(null), [])
 
   // ─── Saved boards ─────────────────────────────────────────────────────────
@@ -275,6 +299,102 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [saved, commit, board?.savedId],
   )
 
+  // ─── AI (W3a) ─────────────────────────────────────────────────────────────
+  // The request lives here, not in a component: navigating away doesn't lose a
+  // generation that was already charged. The board is only touched by apply().
+
+  const [aiState, setAiState] = useState<AiRequestState>({ status: 'idle' })
+  const [aiQuota, setAiQuota] = useState<QuotaInfo | null>(null)
+  const aiRequest = useRef(0)
+
+  // the attempts left, without spending one, as soon as the Studio exists
+  useEffect(() => {
+    if (!AI_CONFIGURED) return
+    let cancelled = false
+    getQuota(getClientId(storage), { baseUrl: AI_API_URL }).then(
+      (quota) => !cancelled && setAiQuota(quota),
+      () => undefined, // a failing /quota never blocks the classic web (D8)
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [storage])
+
+  const proposeAi = useCallback(
+    async (concept: string, getToken: () => Promise<string>) => {
+      const id = ++aiRequest.current
+      const dispatch = (event: AiRequestEvent) => {
+        if (aiRequest.current === id) setAiState((s) => reduceAiRequest(s, event))
+      }
+      dispatch({ type: 'pedir' })
+      if (conceptProblem(concept)) {
+        dispatch({ type: 'falla', code: 'invalid_params', resetAt: null })
+        return
+      }
+      let token: string
+      try {
+        token = await getToken()
+      } catch (err) {
+        const scriptMissing = err instanceof TurnstileError && err.reason === 'script'
+        dispatch({ type: 'falla', code: scriptMissing ? 'network' : 'captcha_failed', resetAt: null })
+        return
+      }
+      try {
+        const response = await generate({ concept: concept.trim(), clientId: getClientId(storage), turnstileToken: token }, { baseUrl: AI_API_URL })
+        setAiQuota({ remaining: response.remaining, resetAt: response.resetAt })
+        dispatch({ type: 'respuesta', response })
+      } catch (err) {
+        const failure = err instanceof AiFailure ? err : new AiFailure('network')
+        if (failure.remaining !== null) setAiQuota({ remaining: failure.remaining, resetAt: failure.resetAt })
+        dispatch({ type: 'falla', code: failure.code, resetAt: failure.resetAt })
+      }
+    },
+    [storage],
+  )
+
+  const applyAi = useCallback(() => {
+    if (aiState.status !== 'ready') return
+    const brandbook = aiState.proposal.brandbook
+    const patch = applyProposal(brandbook, selectionRef.current.map((s) => s.photo.id))
+    if (!patch) return
+    if (boardRef.current) setBoard((b) => (b ? { ...b, ...patch } : b))
+    else setPendingAi(patch)
+    // N1: with no tags of the user's own, the AI queries are the search; with
+    // some, theirs stay and the AI's wait as suggestions (no Unsplash spent)
+    if (!tags.length) search(brandbook.search_queries.slice(0, MAX_TAGS))
+    setAiState({ status: 'idle' })
+  }, [aiState, tags, search])
+
+  const discardAi = useCallback(() => setAiState({ status: 'idle' }), [])
+
+  const appliedAi = board?.ai ?? pendingAi?.ai ?? null
+  const suggestedTags = useMemo(() => (tags.length ? suggestedQueries(appliedAi, tags) : []), [appliedAi, tags])
+
+  const addSuggestedTag = useCallback(
+    (tag: string) => {
+      const current = resultsRef.current?.map((r) => r.tag) ?? []
+      if (current.length >= MAX_TAGS || current.includes(tag)) return false
+      search([...current, tag])
+      return true
+    },
+    [search],
+  )
+
+  const ai = useMemo<StudioApi['ai']>(
+    () => ({
+      available: AI_CONFIGURED,
+      state: aiState,
+      remaining: aiQuota?.remaining ?? null,
+      resetAt: aiQuota?.resetAt ?? null,
+      propose: proposeAi,
+      apply: applyAi,
+      discard: discardAi,
+      suggestedTags,
+      addSuggestedTag,
+    }),
+    [aiState, aiQuota, proposeAi, applyAi, discardAi, suggestedTags, addSuggestedTag],
+  )
+
   const searching = results?.some((r) => r.status === 'loading') ?? false
 
   const api = useMemo<StudioApi>(
@@ -308,6 +428,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       duplicateSaved,
       renameSaved,
       removeSaved,
+      ai,
     }),
     [
       idea,
@@ -338,6 +459,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       duplicateSaved,
       renameSaved,
       removeSaved,
+      ai,
     ],
   )
 

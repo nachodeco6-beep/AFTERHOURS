@@ -18,7 +18,7 @@ export interface Picked extends Entry {
 }
 
 import type { Brandbook } from '../../shared/types'
-import type { DivergenceDismissal, PaletteOrigin } from '../lib/aiProposal'
+import type { AiRequestState, DivergenceDismissal, PaletteOrigin } from '../lib/aiProposal'
 import type { PaletteEdit } from '../lib/colorLab'
 import type { Template } from '../lib/compose'
 import type { Format } from '../lib/formats'
@@ -76,6 +76,26 @@ export interface Board {
 
 export type ToggleResult = 'added' | 'removed' | 'full'
 
+/** The AI side of the Studio (W3a). The panel over it is Nacho's (W3b). */
+export interface StudioAiApi {
+  /** False when the env isn't set: the AI never shows and the web is the classic one (D8). */
+  available: boolean
+  state: AiRequestState
+  /** Attempts left, when known (from /quota on mount and every answer). */
+  remaining: number | null
+  /** ISO in UTC: when the next attempt comes back; null with the quota full. */
+  resetAt: string | null
+  /** One generation. getToken comes from the Turnstile widget (a fresh token per request, N3). */
+  propose: (concept: string, getToken: () => Promise<string>) => Promise<void>
+  /** Applies the ready proposal to the board (D15); with no board yet, it waits for «Armar». */
+  apply: () => void
+  discard: () => void
+  /** AI queries to add with one click when the user brought their own tags (N1). */
+  suggestedTags: string[]
+  /** False when the board already searches the most tags it can. */
+  addSuggestedTag: (tag: string) => boolean
+}
+
 export interface StudioApi {
   idea: string
   setIdea: (idea: string) => void
@@ -120,6 +140,8 @@ export interface StudioApi {
   duplicateSaved: (id: string) => WriteResult
   renameSaved: (id: string, title: string) => WriteResult
   removeSaved: (id: string) => WriteResult
+
+  ai: StudioAiApi
 }
 
 export const StudioContext = createContext<StudioApi | null>(null)

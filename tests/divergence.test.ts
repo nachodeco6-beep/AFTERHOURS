@@ -21,7 +21,8 @@ test('a case put together by hand: half backgrounds, half the average of the mat
   // same background on both sides (black); the matching pairs black→black and grey→white
   assert.equal(backgroundOf(AI), '#000000')
   assert.equal(backgroundOf(fotos), '#000000')
-  const expected = 0.5 * 0 + 0.5 * ((0 + d('#888888', '#FFFFFF')) / 2)
+  // el término de fondos es 0 (mismo fondo): queda la mitad del promedio del emparejamiento
+  const expected = 0.5 * ((0 + d('#888888', '#FFFFFF')) / 2)
   assert.ok(Math.abs(paletteDistance(AI, fotos)! - expected) < 1e-9, `esperaba ${expected}, dio ${paletteDistance(AI, fotos)}`)
 })
 
