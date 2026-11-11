@@ -7,7 +7,9 @@
  * and what was chosen in the Type Lab. Records are versioned: reading migrates
  * older ones and drops anything that doesn't look like a board.
  */
-import type { Photo } from '../../shared/types.ts'
+import type { Brandbook, Photo } from '../../shared/types.ts'
+import { MOODS, type Mood } from '../data/moods.ts'
+import type { DivergenceDismissal, PaletteOrigin } from './aiProposal.ts'
 import { MAX_COLORS, MIN_COLORS, ROLES, type LabColor, type PaletteEdit, type Role } from './colorLab.ts'
 import { hexToRgb, rgbToHex } from './color.ts'
 import type { Template } from './compose.ts'
@@ -15,8 +17,8 @@ import { DEFAULT_FORMAT, FORMAT_ORDER, type Format } from './formats.ts'
 import { DEFAULT_TYPE_STYLE, type PickedFonts, type TypeStyle } from './typography.ts'
 
 export const STORAGE_KEY = 'afterhours.boards'
-/** 1: first version. 2: adds the Color Lab palette. */
-export const SAVED_VERSION = 2
+/** 1: first version. 2: adds the Color Lab palette. 3: AI fields, and unknown fields survive a save. */
+export const SAVED_VERSION = 3
 
 export interface SavedInclude {
   palette: boolean
@@ -43,6 +45,19 @@ export interface SavedBoard {
   /** The tags of the idea: keywords and notes come from them. */
   concept: string[]
   photos: { photo: Photo; tag: string }[]
+  /** Who put the active palette there (D22). «fotos» is what palette: null used to mean. */
+  paletteOrigin: PaletteOrigin
+  /** The AI palette as proposed, kept even when it isn't the active one (D22). */
+  aiPalette: PaletteEdit | null
+  /** The applied brandbook, whole (N9); null = the AI never touched this board. */
+  ai: Brandbook | null
+  /** A dismissed divergence notice: D and the photos of that moment (D23). */
+  divergenceDismissal: DivergenceDismissal | null
+  /**
+   * Fields this version doesn't know, read from storage and written back flat
+   * on save, so an older build never erases what a newer one stored (N9).
+   */
+  extras: Record<string, unknown>
 }
 
 /** The part of a board that counts as «its content»: what a save keeps. */
@@ -52,7 +67,24 @@ export const makeRecord = (content: BoardContent, id: string, savedAt: number): 
 
 /** Same content ⇔ same signature (used to know if there are unsaved changes). */
 export const signature = (c: BoardContent) =>
-  JSON.stringify([c.title, c.template, c.format, c.include, c.notes, c.pairOffset, c.fonts, c.typeStyle, c.palette, c.concept, c.photos.map((p) => [p.photo.id, p.tag])])
+  JSON.stringify([
+    c.title,
+    c.template,
+    c.format,
+    c.include,
+    c.notes,
+    c.pairOffset,
+    c.fonts,
+    c.typeStyle,
+    c.palette,
+    c.concept,
+    c.photos.map((p) => [p.photo.id, p.tag]),
+    c.paletteOrigin,
+    c.aiPalette,
+    c.ai,
+    c.divergenceDismissal,
+    c.extras,
+  ])
 
 export const contentOf = (r: SavedBoard): BoardContent => {
   const { version: _v, id: _i, savedAt: _s, ...content } = r
@@ -106,9 +138,56 @@ function readPalette(v: unknown): PaletteEdit | null {
   return colors.length >= MIN_COLORS && colors.length <= MAX_COLORS ? { colors, basis: v.basis } : null
 }
 
+const phraseList = (x: unknown): x is string[] => Array.isArray(x) && x.length > 0 && x.every(str)
+
+/** The applied brandbook as stored; a corrupt one is dropped as a field, the board opens anyway. */
+function readBrandbook(v: unknown): Brandbook | null {
+  if (!isObj(v) || !str(v.mood) || !MOODS.includes(v.mood as Mood) || !num(v.pair_id) || !str(v.palette_id) || !str(v.rationale)) return null
+  if (!phraseList(v.concepts) || !phraseList(v.search_queries) || !phraseList(v.applications)) return null
+  return {
+    mood: v.mood as Mood,
+    pair_id: v.pair_id,
+    palette_id: v.palette_id,
+    concepts: v.concepts,
+    search_queries: v.search_queries,
+    applications: v.applications,
+    rationale: v.rationale,
+  }
+}
+
+function readDismissal(v: unknown): DivergenceDismissal | null {
+  if (!isObj(v) || !num(v.d) || !Array.isArray(v.photoIds) || !v.photoIds.every(str)) return null
+  return { d: v.d, photoIds: v.photoIds }
+}
+
+const ORIGINS: PaletteOrigin[] = ['fotos', 'ia', 'manual']
+
+/** The top-level fields this version writes itself; anything else is kept in extras (N9). */
+const KNOWN_KEYS = new Set([
+  'version',
+  'id',
+  'savedAt',
+  'title',
+  'template',
+  'format',
+  'include',
+  'notes',
+  'pairOffset',
+  'fonts',
+  'typeStyle',
+  'palette',
+  'concept',
+  'photos',
+  'paletteOrigin',
+  'aiPalette',
+  'ai',
+  'divergenceDismissal',
+])
+
 /**
  * One stored record, migrated to the current version; null if it isn't a
  * usable board. v1 → v2: no Color Lab yet, so the automatic palette.
+ * v2 → v3: an edited palette was always by hand, so «manual»; none, «fotos».
  */
 export function readRecord(v: unknown): SavedBoard | null {
   if (!isObj(v) || !str(v.id) || !Array.isArray(v.photos)) return null
@@ -118,6 +197,11 @@ export function readRecord(v: unknown): SavedBoard | null {
   if (!photos.length) return null
   const inc = isObj(v.include) ? v.include : {}
   const fonts = isObj(v.fonts) && num(v.fonts.display) && num(v.fonts.text) ? { display: v.fonts.display, text: v.fonts.text } : null
+  const palette = readPalette(v.palette)
+  const storedOrigin = ORIGINS.includes(v.paletteOrigin as PaletteOrigin) ? (v.paletteOrigin as PaletteOrigin) : null
+  // an in-memory record carries its extras nested; stored ones have them flat
+  const extras: Record<string, unknown> = isObj(v.extras) ? { ...v.extras } : {}
+  for (const key of Object.keys(v)) if (!KNOWN_KEYS.has(key) && key !== 'extras') extras[key] = v[key]
   return {
     version: SAVED_VERSION,
     id: v.id,
@@ -136,9 +220,15 @@ export function readRecord(v: unknown): SavedBoard | null {
     pairOffset: num(v.pairOffset) ? Math.trunc(v.pairOffset) : 0,
     fonts,
     typeStyle: readStyle(v.typeStyle),
-    palette: readPalette(v.palette),
+    palette,
     concept: Array.isArray(v.concept) ? v.concept.filter(str) : [],
     photos,
+    // no active edit = the photos' palette, whatever was stored; with one, «ia» only if it said so
+    paletteOrigin: palette === null ? 'fotos' : storedOrigin === 'ia' ? 'ia' : 'manual',
+    aiPalette: readPalette(v.aiPalette),
+    ai: readBrandbook(v.ai),
+    divergenceDismissal: readDismissal(v.divergenceDismissal),
+    extras,
   }
 }
 
@@ -166,11 +256,14 @@ export function readBoards(storage: KeyValue | null): SavedBoard[] {
 
 export type WriteResult = 'ok' | 'full' | 'unavailable'
 
+/** What goes to storage: the unknown fields back at the top level, where a newer version looks for them (N9). */
+const toStored = ({ extras, ...known }: SavedBoard): Record<string, unknown> => ({ ...extras, ...known })
+
 /** Stores the whole list. «full» when the browser ran out of room, «unavailable» when it doesn't let us store at all. */
 export function writeBoards(storage: KeyValue | null, list: SavedBoard[]): WriteResult {
   if (!storage) return 'unavailable'
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(list))
+    storage.setItem(STORAGE_KEY, JSON.stringify(list.map(toStored)))
     return 'ok'
   } catch (e) {
     const name = e instanceof Error ? e.name : ''

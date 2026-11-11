@@ -34,6 +34,11 @@ const content = (over: Partial<BoardContent> = {}): BoardContent => ({
     { photo: photo('b', P), tag: 'surf' },
     { photo: photo('c', L), tag: 'lujo' },
   ],
+  paletteOrigin: 'fotos',
+  aiPalette: null,
+  ai: null,
+  divergenceDismissal: null,
+  extras: {},
   ...over,
 })
 
@@ -67,7 +72,7 @@ test('the signature changes with any edit, not with the save time', () => {
 test('older records are migrated: missing fields get their defaults', () => {
   const old = { id: 'old', title: 'Antiguo', template: 'grilla', photos: [{ photo: photo('a'), tag: 'mar' }], pairOffset: 1 }
   const r = readRecord(old)!
-  assert.equal(r.version, 2)
+  assert.equal(r.version, 3)
   assert.equal(r.format, 'horizontal')
   assert.deepEqual(r.include, { palette: true, type: true, keywords: true, notes: false })
   assert.equal(r.fonts, null)
@@ -143,4 +148,115 @@ test('a full or blocked storage is reported, not thrown', () => {
   assert.equal(writeBoards(full, list), 'full')
   assert.equal(writeBoards(blocked, list), 'unavailable')
   assert.equal(writeBoards(null, list), 'unavailable')
+})
+
+// ─── v3: campos de la IA y campos desconocidos (N9, D22, D23) ────────────────
+
+const brandbook = {
+  mood: 'urbano' as const,
+  pair_id: 7,
+  palette_id: 'after-hours',
+  concepts: ['frase uno', 'frase dos'],
+  search_queries: ['night street'],
+  applications: ['web'],
+  rationale: 'porque sí',
+}
+
+const aiEdit = {
+  colors: [
+    { hex: '#090909', locked: false, role: 'fondo' as const, photoId: null },
+    { hex: '#F1F0E8', locked: false, role: 'texto' as const, photoId: null },
+    { hex: '#C7FF3D', locked: false, role: 'acento' as const, photoId: null },
+  ],
+  basis: 'unsplash:a|unsplash:b',
+}
+
+test('a v2 record opens the same: an edited palette is «manual», none is «fotos»', () => {
+  const v2 = { ...makeRecord(content(), 'v2', 1), version: 2 } as Record<string, unknown>
+  delete v2.paletteOrigin
+  delete v2.aiPalette
+  delete v2.ai
+  delete v2.divergenceDismissal
+  delete v2.extras
+  const sinPaleta = readRecord(v2)!
+  assert.equal(sinPaleta.paletteOrigin, 'fotos')
+  assert.equal(sinPaleta.aiPalette, null)
+  assert.equal(sinPaleta.ai, null)
+  assert.equal(sinPaleta.divergenceDismissal, null)
+  assert.deepEqual(sinPaleta.extras, {})
+  const conPaleta = readRecord({ ...v2, palette: aiEdit })!
+  assert.equal(conPaleta.paletteOrigin, 'manual')
+})
+
+test('a v1 record opens as «fotos»', () => {
+  const v1 = { version: 1, id: 'v1', title: 'Viejo', template: 'collage', photos: [{ photo: photo('a', L), tag: 'mar' }] }
+  const r = readRecord(v1)!
+  assert.equal(r.paletteOrigin, 'fotos')
+  assert.equal(r.ai, null)
+})
+
+test('a v3 round trip keeps every AI field', () => {
+  const store = new Memory()
+  const c = content({
+    palette: aiEdit,
+    paletteOrigin: 'ia',
+    aiPalette: aiEdit,
+    ai: brandbook,
+    divergenceDismissal: { d: 52.5, photoIds: ['unsplash:a', 'unsplash:b'] },
+  })
+  writeBoards(store, [makeRecord(c, 'ia1', 7)])
+  const [back] = readBoards(store)
+  assert.equal(back.paletteOrigin, 'ia')
+  assert.deepEqual(back.aiPalette, aiEdit)
+  assert.deepEqual(back.ai, brandbook)
+  assert.deepEqual(back.divergenceDismissal, { d: 52.5, photoIds: ['unsplash:a', 'unsplash:b'] })
+  assert.equal(signature(contentOf(back)), signature(c), 'reabrir no marca cambios sin guardar')
+})
+
+test('a corrupt ai or aiPalette is dropped as a field and the board opens anyway', () => {
+  const good = makeRecord(content({ ai: brandbook, aiPalette: aiEdit }), 'x', 1)
+  const badAi = readRecord({ ...good, ai: { mood: 'urbano', pair_id: 'siete' } })!
+  assert.equal(badAi.ai, null)
+  assert.equal(readRecord({ ...good, ai: { ...brandbook, concepts: [] } })!.ai, null)
+  assert.equal(readRecord({ ...good, ai: { ...brandbook, mood: 'festivo' } })!.ai, null)
+  const badPalette = readRecord({ ...good, aiPalette: { colors: [{ hex: 'nope' }], basis: 'x' } })!
+  assert.equal(badPalette.aiPalette, null)
+  assert.equal(badPalette.title, 'Riviera', 'el tablero se abre igual')
+})
+
+test('an «ia» origin without an active palette falls back to «fotos»', () => {
+  const r = readRecord({ ...makeRecord(content({ paletteOrigin: 'ia', aiPalette: aiEdit, ai: brandbook }), 'x', 1), palette: null })!
+  assert.equal(r.paletteOrigin, 'fotos')
+  assert.deepEqual(r.aiPalette, aiEdit, 'la paleta de la IA guardada queda')
+})
+
+test('the signature changes with the palette origin and with the brandbook', () => {
+  const base = signature(content({ palette: aiEdit, paletteOrigin: 'manual' }))
+  assert.notEqual(signature(content({ palette: aiEdit, paletteOrigin: 'ia' })), base)
+  assert.notEqual(signature(content({ palette: aiEdit, paletteOrigin: 'manual', ai: brandbook })), base)
+})
+
+test('fields this version does not know survive a save, flat in storage (N9)', () => {
+  const store = new Memory()
+  // lo que guardaría una versión futura: un campo que esta versión no conoce
+  const futureRaw = { ...JSON.parse(JSON.stringify(makeRecord(content(), 'fut', 3))), logo_v5: { simbolo: 'rayo' }, version: 4 }
+  delete futureRaw.extras
+  store.setItem(STORAGE_KEY, JSON.stringify([futureRaw]))
+  const [opened] = readBoards(store)
+  assert.deepEqual(opened.extras, { logo_v5: { simbolo: 'rayo' } })
+  // esta versión lo guarda de nuevo: el campo vuelve plano, donde la versión nueva lo busca
+  const again = new Memory()
+  writeBoards(again, [opened])
+  const raw = JSON.parse(again.getItem(STORAGE_KEY)!)[0]
+  assert.deepEqual(raw.logo_v5, { simbolo: 'rayo' })
+  assert.ok(!('extras' in raw), 'extras no queda anidado en el storage')
+  assert.equal(raw.version, 3, 'los campos conocidos son los de esta versión')
+})
+
+test('a known field never loses against an extras collision', () => {
+  const store = new Memory()
+  writeBoards(store, [makeRecord(content({ extras: { title: 'intruso', libre: 1 } }), 'x', 1)])
+  const raw = JSON.parse(store.getItem(STORAGE_KEY)!)[0]
+  assert.equal(raw.title, 'Riviera')
+  assert.equal(raw.libre, 1)
 })

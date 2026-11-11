@@ -17,6 +17,8 @@ export interface Picked extends Entry {
   auto: boolean
 }
 
+import type { Brandbook } from '../../shared/types'
+import type { DivergenceDismissal, PaletteOrigin } from '../lib/aiProposal'
 import type { PaletteEdit } from '../lib/colorLab'
 import type { Template } from '../lib/compose'
 import type { Format } from '../lib/formats'
@@ -56,6 +58,16 @@ export interface Board {
   typeStyle: TypeStyle
   /** Palette edited in the Color Lab; null = the automatic one, read from the photos. */
   paletteEdit: PaletteEdit | null
+  /** Who put the active palette there (D22): the AI, a hand edit, or the photos. */
+  paletteOrigin: PaletteOrigin
+  /** The AI palette as proposed, kept even when another palette is active (D22). */
+  aiPalette: PaletteEdit | null
+  /** The applied brandbook, saved whole with the project (N9); null = no AI direction. */
+  ai: Brandbook | null
+  /** A dismissed divergence notice: D and the photos of that moment (D23). */
+  divergenceDismissal: DivergenceDismissal | null
+  /** Stored fields this build doesn't know, carried so saving never erases them (N9). */
+  extras: Record<string, unknown>
   /** The saved board this one is (or null if it was never saved). */
   savedId: string | null
   /** Changes on every «Armar», so the view can scroll to the new board. */

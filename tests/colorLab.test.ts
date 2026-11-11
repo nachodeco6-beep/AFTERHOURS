@@ -220,7 +220,7 @@ test('saved boards: old ones migrate to the automatic palette; edited palettes s
   const { photo } = await import('./helpers.ts')
   const v1 = { version: 1, id: 'old', title: 'Viejo', template: 'collage', format: 'vertical', photos: [{ photo: photo('a'), tag: 'mar' }], typeStyle: { leading: 1.5 } }
   const migrated = readRecord(v1)!
-  assert.equal(migrated.version, 2)
+  assert.equal(migrated.version, 3)
   assert.equal(migrated.palette, null, 'automatic palette')
   assert.equal(migrated.title, 'Viejo')
   assert.equal(migrated.format, 'vertical')
