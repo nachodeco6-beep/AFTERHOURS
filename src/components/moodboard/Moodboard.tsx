@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoardData } from '../../hooks/useBoardData'
 import { useStudio, type Format, type Template, type WriteResult } from '../../hooks/useStudio'
 import { basisOf, recalc } from '../../lib/colorLab'
+import { paletteDistance } from '../../lib/divergence'
 import { FORMAT_ORDER, FORMATS } from '../../lib/formats'
 import { MIN_SELECTION } from '../../lib/select'
 import { BoardCanvas } from './BoardCanvas'
@@ -83,10 +84,17 @@ export function Moodboard() {
     />
   )
 
-  // the photos changed under an edited palette: keep it, or recalculate (locked colours stay)
+  // the photos changed under a hand-edited palette: keep it, or recalculate (locked colours stay).
+  // An AI palette has its own notice (D20/D22), so this one only speaks for «manual».
   const edit = board.paletteEdit
   const photosBasis = basisOf(photos.map((p) => p.id))
-  const stale = edit !== null && data.autoPalette !== null && edit.basis !== photosBasis
+  const stale = edit !== null && board.paletteOrigin === 'manual' && data.autoPalette !== null && edit.basis !== photosBasis
+
+  // D between the AI palette and the photos' palette, to calibrate the threshold (N10). Dev only.
+  const devD =
+    import.meta.env.DEV && board.aiPalette && data.autoPalette
+      ? paletteDistance(board.aiPalette.colors.map((c) => c.hex), data.autoPalette.colors)
+      : null
 
   const save = () => setSaveResult(saveBoard())
 
@@ -217,7 +225,13 @@ export function Moodboard() {
           </div>
           {board.include.type && (
             <p id="pair-position" className="label-sm text-dim" aria-live="polite">
-              {board.fonts ? 'Elegido en el Type Lab' : `Par ${data.position + 1} de ${data.ranked.length}`}: {data.pair.display.family} + {data.pair.text.family}
+              {`${
+                board.fonts
+                  ? board.ai && board.fonts.display === board.ai.pair_id && board.fonts.text === board.ai.pair_id
+                    ? 'Propuesta de dirección' // texto provisorio; el final lo escribe Nacho (N2, W3b)
+                    : 'Elegido en el Type Lab'
+                  : `Par ${data.position + 1} de ${data.ranked.length}`
+              }: ${data.pair.display.family} + ${data.pair.text.family}`}
             </p>
           )}
         </div>
@@ -237,6 +251,12 @@ export function Moodboard() {
           )}
         </AnimatePresence>
       </div>
+
+      {devD !== null && board.include.palette && (
+        <p className="label-sm mb-4 text-dim" title="Distancia entre la paleta de la IA y la de las fotos (D20); solo en desarrollo">
+          D = {devD.toFixed(1)}
+        </p>
+      )}
 
       {stale && board.include.palette && (
         <div role="status" className="mb-4 flex flex-col gap-3 border border-line bg-char/60 p-4 sm:flex-row sm:items-center sm:justify-between">

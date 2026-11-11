@@ -37,6 +37,9 @@ export function ColorLab({ board, photos, auto, pair, onChange, onClose, embedde
   const edit: PaletteEdit | null = board.paletteEdit ?? (auto ? fromAuto(auto.colors, pool, photoIds) : null)
   const colors = edit?.colors ?? []
   const touched = board.paletteEdit !== null
+  // with an AI palette active the way out is «Usar paleta de tus fotos», always visible (D22, N4);
+  // the AI palette stays saved with the board, to come back to it (D19)
+  const aiActive = board.paletteOrigin === 'ia'
   // only if the photos still have a colour different enough from the ones in use
   const canGrow = colors.length < MAX_COLORS && setCount(colors, colors.length + 1, pool, photoIds).length > colors.length
 
@@ -123,17 +126,17 @@ export function ColorLab({ board, photos, auto, pair, onChange, onClose, embedde
       }}
       regenerateHint="«Regenerar» cambia los colores sin candado por otros tonos que están en las fotos del tablero."
       paletteExtra={
-        touched && (
+        (touched || aiActive) && (
           <button
             type="button"
             onClick={() => {
               onChange(null)
               setPicking(null)
-              say('Volviste a la paleta automática.')
+              say(aiActive ? 'Paleta de tus fotos activa. La propuesta de la IA queda guardada en el tablero.' : 'Volviste a la paleta automática.')
             }}
             className="label-sm inline-flex h-8 items-center gap-1.5 text-mute hover:text-bone"
           >
-            <RotateCcw className="size-3" aria-hidden="true" /> Volver a la paleta automática
+            <RotateCcw className="size-3" aria-hidden="true" /> {aiActive ? 'Usar paleta de tus fotos' : 'Volver a la paleta automática'}
           </button>
         )
       }
