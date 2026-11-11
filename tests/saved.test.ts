@@ -222,6 +222,8 @@ test('a corrupt ai or aiPalette is dropped as a field and the board opens anyway
   const badPalette = readRecord({ ...good, aiPalette: { colors: [{ hex: 'nope' }], basis: 'x' } })!
   assert.equal(badPalette.aiPalette, null)
   assert.equal(badPalette.title, 'Riviera', 'el tablero se abre igual')
+  assert.equal(readRecord({ ...good, divergenceDismissal: { d: 'mucho', photoIds: ['a'] } })!.divergenceDismissal, null)
+  assert.equal(readRecord({ ...good, divergenceDismissal: { d: 50, photoIds: [7] } })!.divergenceDismissal, null)
 })
 
 test('an «ia» origin without an active palette falls back to «fotos»', () => {
